@@ -11,6 +11,7 @@ const (
 	TestFilename = "/var/fbdata/go-fb-test.fdb"
 	TestConnectionString = "database=localhost:/var/fbdata/go-fb-test.fdb; username=gotest; password=gotest; charset=NONE; role=READER;"
 	TestConnectionString2 = "database=localhost:/var/fbdata/go-fb-test.fdb;username=gotest;password=gotest;lowercase_names=true;page_size=2048"
+	TestConnectionString3 = "database=localhost:/var/fbdata/go-fb-test.fdb;username=bogus;password=gotest;lowercase_names=true;page_size=2048"
 	CreateStatement = "CREATE DATABASE 'localhost:/var/fbdata/go-fb-test.fdb' USER 'gotest' PASSWORD 'gotest' PAGE_SIZE = 1024 DEFAULT CHARACTER SET NONE;"
 )
 
@@ -101,5 +102,45 @@ func TestDatabaseCreate(t *testing.T) {
 	}
 	if db != conn.database {
 		t.Error("database field not set")
+	}
+}
+
+func TestCreate(t *testing.T) {
+	os.Remove(TestFilename)
+	defer os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Error creating database: %s", err)
+	}
+	defer conn.Close()
+	if !FileExist(TestFilename) {
+		t.Fatalf("Database was not created.")
+	}
+}
+
+const CreateErrorMessage = `Unsuccessful execution caused by a system error that precludes successful execution of subsequent statements
+Your user name and password are not defined. Ask your database administrator to set up a Firebird login.
+`
+
+func TestCreate2(t *testing.T) {
+	os.Remove(TestFilename)
+	defer os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString3)
+	if err == nil {
+		t.Error("Expected error creating database.")
+	}
+	if err.String() != CreateErrorMessage {
+		t.Logf("Unexpected error message: %s", err)
+		t.Logf("Expected message: %s", CreateErrorMessage)
+		t.Fail()
+	}
+	if conn != nil {
+		defer conn.Close()
+		t.Error("Connection should be nil")
+	}
+	if FileExist(TestFilename) {
+		t.Error("Database was created.")
 	}
 }

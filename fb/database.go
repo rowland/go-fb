@@ -84,8 +84,12 @@ func New(parms string) (db *Database, err os.Error) {
 }
 
 func (db *Database) CreateStatement() string {
-	return fmt.Sprintf("CREATE DATABASE '%s' USER '%s' PASSWORD '%s' PAGE_SIZE = %d DEFAULT CHARACTER SET %s;",
-		db.Database, db.Username, db.Password, db.PageSize, db.Charset)
+	var defaultCharset string
+	if db.Charset != "" {
+		defaultCharset = fmt.Sprintf("DEFAULT CHARACTER SET %s", db.Charset)
+	}
+	return fmt.Sprintf("CREATE DATABASE '%s' USER '%s' PASSWORD '%s' PAGE_SIZE = %d %s;",
+		db.Database, db.Username, db.Password, db.PageSize, defaultCharset)
 }
 
 func fbErrorMsg(isc_status *C.ISC_STATUS) string {
@@ -100,7 +104,7 @@ func fbErrorMsg(isc_status *C.ISC_STATUS) string {
 	return buf.String()
 }
 
-func fbErrorCheck(isc_status [20]C.ISC_STATUS) *Error {
+func fbErrorCheck(isc_status *[20]C.ISC_STATUS) *Error {
 	if (isc_status[0] == 1 && isc_status[1] != 0) {
 		var msg [1024]C.ISC_SCHAR
 		var code C.short = C.short(C.isc_sqlcode(&isc_status[0]))
@@ -127,7 +131,16 @@ func (db *Database) Create() (*Connection, os.Error) {
 	defer C.free(unsafe.Pointer(sql))
 	
 	if C.isc_dsql_execute_immediate(&isc_status[0], &handle, &local_transact, 0, sql2, 3, nil) != 0 {
-		return nil, fbErrorCheck(isc_status)
+		return nil, fbErrorCheck(&isc_status)
 	}
 	return &Connection{database: db, db: handle}, nil
+}
+
+func Create(parms string) (conn *Connection, err os.Error) {
+	db, err := New(parms)
+	if err != nil {
+		return
+	}
+	conn, err = db.Create()
+	return
 }

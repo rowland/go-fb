@@ -27,7 +27,7 @@ func (conn *Connection) check() *Error {
 func (conn *Connection) disconnect() (err *Error) {
 	if conn.transact != 0 {
 		C.isc_commit_transaction(&conn.isc_status[0], &conn.transact)
-		if err = fbErrorCheck(conn.isc_status); err != nil {
+		if err = fbErrorCheck(&conn.isc_status); err != nil {
 			return
 		}
 	}
@@ -36,7 +36,7 @@ func (conn *Connection) disconnect() (err *Error) {
 	} else {
 		C.isc_detach_database(&conn.isc_status[0], &conn.db)
 	}
-	return fbErrorCheck(conn.isc_status)
+	return fbErrorCheck(&conn.isc_status)
 }
 
 func (conn *Connection) dropCursors() {
