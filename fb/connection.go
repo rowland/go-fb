@@ -6,25 +6,29 @@ package fb
 */
 import "C"
 
+import (
+	"os"
+)
+
 type Connection struct {
-	database *Database
-	db C.isc_db_handle
-	transact C.isc_tr_handle
-	dialect C.ushort
+	database   *Database
+	db         C.isc_db_handle
+	transact   C.isc_tr_handle
+	dialect    C.ushort
 	db_dialect C.ushort
-	dropped bool
+	dropped    bool
 	isc_status [20]C.ISC_STATUS
-	cursors []*Cursor
+	cursors    []*Cursor
 }
 
-func (conn *Connection) check() *Error {
+func (conn *Connection) check() os.Error {
 	if conn.db == 0 {
 		return &Error{0, "closed db connection"}
 	}
 	return nil
 }
 
-func (conn *Connection) disconnect() (err *Error) {
+func (conn *Connection) disconnect() (err os.Error) {
 	if conn.transact != 0 {
 		C.isc_commit_transaction(&conn.isc_status[0], &conn.transact)
 		if err = fbErrorCheck(&conn.isc_status); err != nil {
@@ -46,8 +50,8 @@ func (conn *Connection) dropCursors() {
 	conn.cursors = nil
 }
 
-func (conn *Connection) Close() (err *Error) {
-	if (conn.dropped) {
+func (conn *Connection) Close() (err os.Error) {
+	if conn.dropped {
 		return
 	}
 	if err = conn.check(); err != nil {
@@ -57,5 +61,14 @@ func (conn *Connection) Close() (err *Error) {
 		return
 	}
 	conn.dropCursors()
-	return nil	
+	return nil
+}
+
+func (conn *Connection) Drop() (err os.Error) {
+	conn.dropped = true
+	if err = conn.disconnect(); err != nil {
+		return
+	}
+	conn.dropCursors()
+	return nil
 }

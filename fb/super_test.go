@@ -4,7 +4,7 @@ import "testing"
 import "fmt"
 
 type SuperTest struct {
-	t *testing.T
+	t      *testing.T
 	prefix string
 }
 

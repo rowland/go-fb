@@ -16,7 +16,7 @@ import (
 )
 
 type Error struct {
-	Code int
+	Code    int
 	Message string
 }
 
@@ -96,7 +96,7 @@ func fbErrorMsg(isc_status *C.ISC_STATUS) string {
 	var msg [1024]C.ISC_SCHAR
 	var buf bytes.Buffer
 	for C.fb_interpret(&msg[0], 1024, &isc_status) != 0 {
-		for i:= 0; msg[i] != 0; i++ {
+		for i := 0; msg[i] != 0; i++ {
 			buf.WriteByte(uint8(msg[i]))
 		}
 		buf.WriteString("\n")
@@ -104,14 +104,14 @@ func fbErrorMsg(isc_status *C.ISC_STATUS) string {
 	return buf.String()
 }
 
-func fbErrorCheck(isc_status *[20]C.ISC_STATUS) *Error {
-	if (isc_status[0] == 1 && isc_status[1] != 0) {
+func fbErrorCheck(isc_status *[20]C.ISC_STATUS) os.Error {
+	if isc_status[0] == 1 && isc_status[1] != 0 {
 		var msg [1024]C.ISC_SCHAR
 		var code C.short = C.short(C.isc_sqlcode(&isc_status[0]))
 
-		C.isc_sql_interprete(code, &msg[0], 1024);
+		C.isc_sql_interprete(code, &msg[0], 1024)
 		var buf bytes.Buffer
-		for i:= 0; msg[i] != 0; i++ {
+		for i := 0; msg[i] != 0; i++ {
 			buf.WriteByte(uint8(msg[i]))
 		}
 		buf.WriteString("\n")
@@ -127,9 +127,9 @@ func (db *Database) Create() (*Connection, os.Error) {
 	var handle C.isc_db_handle = 0
 	var local_transact C.isc_tr_handle = 0
 	sql := C.CString(db.CreateStatement())
-	sql2 := (*C.ISC_SCHAR)(unsafe.Pointer(sql));
+	sql2 := (*C.ISC_SCHAR)(unsafe.Pointer(sql))
 	defer C.free(unsafe.Pointer(sql))
-	
+
 	if C.isc_dsql_execute_immediate(&isc_status[0], &handle, &local_transact, 0, sql2, 3, nil) != 0 {
 		return nil, fbErrorCheck(&isc_status)
 	}
@@ -162,13 +162,13 @@ func (db *Database) createDbp() string {
 		buf.WriteByte(byte(len(db.Charset)))
 		buf.WriteString(db.Charset)
 	}
-	
+
 	if db.Role != "" {
 		buf.WriteByte(C.isc_dpb_sql_role_name)
 		buf.WriteByte(byte(len(db.Role)))
 		buf.WriteString(db.Role)
 	}
-	
+
 	return buf.String()
 }
 
@@ -182,7 +182,7 @@ func (db *Database) Connect() (*Connection, os.Error) {
 
 	dbp := db.createDbp()
 	dbp2 := C.CString(dbp)
-	dbp3 := (*C.ISC_SCHAR)(unsafe.Pointer(dbp2));
+	dbp3 := (*C.ISC_SCHAR)(unsafe.Pointer(dbp2))
 	defer C.free(unsafe.Pointer(dbp2))
 
 	var length C.short = C.short(len(dbp))
@@ -190,7 +190,7 @@ func (db *Database) Connect() (*Connection, os.Error) {
 	if err := fbErrorCheck(&isc_status); err != nil {
 		return nil, err
 	}
-	return &Connection{database: db, db: handle}, nil	
+	return &Connection{database: db, db: handle}, nil
 }
 
 func Connect(parms string) (conn *Connection, err os.Error) {
@@ -200,4 +200,21 @@ func Connect(parms string) (conn *Connection, err os.Error) {
 	}
 	conn, err = db.Connect()
 	return
+}
+
+func (db *Database) Drop() (err os.Error) {
+	conn, err := db.Connect()
+	if err != nil {
+		return
+	}
+	err = conn.Drop()
+	return
+}
+
+func Drop(parms string) (err os.Error) {
+	db, err := New(parms)
+	if err != nil {
+		return
+	}
+	return db.Drop()
 }

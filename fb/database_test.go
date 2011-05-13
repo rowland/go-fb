@@ -8,11 +8,11 @@ import (
 )
 
 const (
-	TestFilename = "/var/fbdata/go-fb-test.fdb"
-	TestConnectionString = "database=localhost:/var/fbdata/go-fb-test.fdb; username=gotest; password=gotest; charset=NONE; role=READER;"
+	TestFilename          = "/var/fbdata/go-fb-test.fdb"
+	TestConnectionString  = "database=localhost:/var/fbdata/go-fb-test.fdb; username=gotest; password=gotest; charset=NONE; role=READER;"
 	TestConnectionString2 = "database=localhost:/var/fbdata/go-fb-test.fdb;username=gotest;password=gotest;lowercase_names=true;page_size=2048"
 	TestConnectionString3 = "database=localhost:/var/fbdata/go-fb-test.fdb;username=bogus;password=gotest;lowercase_names=true;page_size=2048"
-	CreateStatement = "CREATE DATABASE 'localhost:/var/fbdata/go-fb-test.fdb' USER 'gotest' PASSWORD 'gotest' PAGE_SIZE = 1024 DEFAULT CHARACTER SET NONE;"
+	CreateStatement       = "CREATE DATABASE 'localhost:/var/fbdata/go-fb-test.fdb' USER 'gotest' PASSWORD 'gotest' PAGE_SIZE = 1024 DEFAULT CHARACTER SET NONE;"
 )
 
 func TestMapFromConnectionString(t *testing.T) {
@@ -91,7 +91,7 @@ func TestDatabaseCreate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
-	
+
 	conn, err := db.Create()
 	if err != nil {
 		t.Fatalf("Error creating database: %s", err)
@@ -141,7 +141,7 @@ func TestCreate2(t *testing.T) {
 		t.Error("Connection should be nil")
 	}
 	if FileExist(TestFilename) {
-		t.Error("Database was created.")
+		t.Error("Database was created with bogus credentials.")
 	}
 }
 
@@ -158,12 +158,12 @@ func TestDatabaseConnect(t *testing.T) {
 		t.Fatalf("Unexpected error: %s", err)
 	}
 	conn.Close()
-	
+
 	conn, err = db.Connect()
 	if err != nil {
 		t.Fatalf("Error connecting to database: %s", err)
 	}
-	conn.Close()	
+	conn.Close()
 }
 
 func TestConnect(t *testing.T) {
@@ -175,10 +175,69 @@ func TestConnect(t *testing.T) {
 		t.Fatalf("Unexpected error: %s", err)
 	}
 	conn.Close()
-	
+
 	conn, err = Connect(TestConnectionString)
 	if err != nil {
 		t.Fatalf("Error connecting to database: %s", err)
 	}
-	conn.Close()	
+	conn.Close()
+}
+
+func TestDatabaseDrop(t *testing.T) {
+	os.Remove(TestFilename)
+	defer os.Remove(TestFilename)
+
+	if FileExist(TestFilename) {
+		t.Fatal("Database should not exist.")
+	}
+
+	db, err := New(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+
+	conn, err := db.Create()
+	if err != nil {
+		t.Fatalf("Error creating database: %s", err)
+	}
+	conn.Close()
+
+	if !FileExist(TestFilename) {
+		t.Fatalf("Database was not created.")
+	}
+
+	if err = db.Drop(); err != nil {
+		t.Fatalf("Error dropping database: %s", err)
+	}
+
+	if FileExist(TestFilename) {
+		t.Fatal("Database should not exist after being dropped.")
+	}
+}
+
+func TestDrop(t *testing.T) {
+	os.Remove(TestFilename)
+	defer os.Remove(TestFilename)
+
+	if FileExist(TestFilename) {
+		t.Fatal("Database should not exist.")
+	}
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Error creating database: %s", err)
+	}
+	conn.Close()
+
+	if !FileExist(TestFilename) {
+		t.Fatalf("Database was not created.")
+	}
+
+	if err = Drop(TestConnectionString); err != nil {
+		t.Fatalf("Error dropping database: %s", err)
+	}
+
+	if FileExist(TestFilename) {
+		t.Fatal("Database should not exist after being dropped.")
+	}
 }
