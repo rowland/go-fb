@@ -44,21 +44,12 @@ func TestNew(t *testing.T) {
 	if db == nil {
 		t.Fatal("db is nil")
 	}
-	if db.Database != "localhost:/var/fbdata/go-fb-test.fdb" {
-		t.Error("Database incorrect")
-	}
-	if db.Username != "gotest" {
-		t.Error("Username incorrect")
-	}
-	if db.Password != "gotest" {
-		t.Error("Password incorrect")
-	}
-	if db.Charset != "NONE" {
-		t.Error("Charset incorrect")
-	}
-	if db.Role != "READER" {
-		t.Error("Role incorrect")
-	}
+	st := SuperTest{t, "TestNew"}
+	st.Equal("localhost:/var/fbdata/go-fb-test.fdb", db.Database)
+	st.Equal("gotest", db.Username)
+	st.Equal("gotest", db.Password)
+	st.Equal("NONE", db.Charset)
+	st.Equal("READER", db.Role)
 }
 
 func TestNew2(t *testing.T) {
@@ -66,18 +57,11 @@ func TestNew2(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
-	if db.Charset != "" {
-		t.Errorf("Charset: unexpected value %s", db.Charset)
-	}
-	if db.Role != "" {
-		t.Errorf("Role: unexpected value %s", db.Role)
-	}
-	if db.LowercaseNames != true {
-		t.Errorf("LowercaseNames: unexpected value %v", db.LowercaseNames)
-	}
-	if db.PageSize != 2048 {
-		t.Errorf("PageSize: unexpected value %d", db.PageSize)
-	}
+	st := SuperTest{t, "TestNew2"}
+	st.Equal("", db.Charset)
+	st.Equal("", db.Role)
+	st.Equal(true, db.LowercaseNames)
+	st.Equal(2048, db.PageSize)
 }
 
 func TestCreateStatement(t *testing.T) {
