@@ -144,3 +144,41 @@ func TestCreate2(t *testing.T) {
 		t.Error("Database was created.")
 	}
 }
+
+func TestDatabaseConnect(t *testing.T) {
+	os.Remove(TestFilename)
+	defer os.Remove(TestFilename)
+
+	db, err := New(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+	conn, err := db.Create()
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+	conn.Close()
+	
+	conn, err = db.Connect()
+	if err != nil {
+		t.Fatalf("Error connecting to database: %s", err)
+	}
+	conn.Close()	
+}
+
+func TestConnect(t *testing.T) {
+	os.Remove(TestFilename)
+	defer os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Unexpected error: %s", err)
+	}
+	conn.Close()
+	
+	conn, err = Connect(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Error connecting to database: %s", err)
+	}
+	conn.Close()	
+}

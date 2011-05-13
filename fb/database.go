@@ -144,3 +144,60 @@ func Create(parms string) (conn *Connection, err os.Error) {
 	conn, err = db.Create()
 	return
 }
+
+func (db *Database) createDbp() string {
+	var buf bytes.Buffer
+	buf.WriteByte(C.isc_dpb_version1)
+
+	buf.WriteByte(C.isc_dpb_user_name)
+	buf.WriteByte(byte(len(db.Username)))
+	buf.WriteString(db.Username)
+
+	buf.WriteByte(C.isc_dpb_password)
+	buf.WriteByte(byte(len(db.Password)))
+	buf.WriteString(db.Password)
+
+	if db.Charset != "" {
+		buf.WriteByte(C.isc_dpb_lc_ctype)
+		buf.WriteByte(byte(len(db.Charset)))
+		buf.WriteString(db.Charset)
+	}
+	
+	if db.Role != "" {
+		buf.WriteByte(C.isc_dpb_sql_role_name)
+		buf.WriteByte(byte(len(db.Role)))
+		buf.WriteString(db.Role)
+	}
+	
+	return buf.String()
+}
+
+func (db *Database) Connect() (*Connection, os.Error) {
+	var isc_status [20]C.ISC_STATUS
+	var handle C.isc_db_handle = 0
+
+	database := C.CString(db.Database)
+	database2 := (*C.ISC_SCHAR)(unsafe.Pointer(database))
+	defer C.free(unsafe.Pointer(database))
+
+	dbp := db.createDbp()
+	dbp2 := C.CString(dbp)
+	dbp3 := (*C.ISC_SCHAR)(unsafe.Pointer(dbp2));
+	defer C.free(unsafe.Pointer(dbp2))
+
+	var length C.short = C.short(len(dbp))
+	C.isc_attach_database(&isc_status[0], 0, database2, &handle, length, dbp3)
+	if err := fbErrorCheck(&isc_status); err != nil {
+		return nil, err
+	}
+	return &Connection{database: db, db: handle}, nil	
+}
+
+func Connect(parms string) (conn *Connection, err os.Error) {
+	db, err := New(parms)
+	if err != nil {
+		return
+	}
+	conn, err = db.Connect()
+	return
+}
