@@ -25,7 +25,6 @@ type Connection struct {
 	dialect      C.ushort
 	db_dialect   C.ushort
 	dropped      bool
-	isc_status   [20]C.ISC_STATUS
 	cursors      []*Cursor
 	rowsAffected int
 }
@@ -38,18 +37,20 @@ func (conn *Connection) check() os.Error {
 }
 
 func (conn *Connection) disconnect() (err os.Error) {
+	var isc_status [20]C.ISC_STATUS
+
 	if conn.transact != 0 {
-		C.isc_commit_transaction(&conn.isc_status[0], &conn.transact)
-		if err = fbErrorCheck(&conn.isc_status); err != nil {
+		C.isc_commit_transaction(&isc_status[0], &conn.transact)
+		if err = fbErrorCheck(&isc_status); err != nil {
 			return
 		}
 	}
 	if conn.dropped {
-		C.isc_drop_database(&conn.isc_status[0], &conn.db)
+		C.isc_drop_database(&isc_status[0], &conn.db)
 	} else {
-		C.isc_detach_database(&conn.isc_status[0], &conn.db)
+		C.isc_detach_database(&isc_status[0], &conn.db)
 	}
-	return fbErrorCheck(&conn.isc_status)
+	return fbErrorCheck(&isc_status)
 }
 
 func (conn *Connection) dropCursors() {
