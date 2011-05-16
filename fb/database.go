@@ -122,6 +122,31 @@ func fbErrorCheck(isc_status *[20]C.ISC_STATUS) os.Error {
 	return nil
 }
 
+func fbErrorCheckWarn(isc_status *[20]C.ISC_STATUS) os.Error {
+	var code C.short = C.short(C.isc_sqlcode(&isc_status[0]))
+	if code != 0 {
+		var buf [1024]C.ISC_SCHAR
+		C.isc_sql_interprete(code, &buf[0], 1024)
+		var msg bytes.Buffer
+		for i := 0; buf[i] != 0; i++ {
+			msg.WriteByte(uint8(buf[i]))
+		}
+		return &Error{int(code), msg.String()}
+	}
+	return nil
+}
+/*
+static void fb_error_check_warn(ISC_STATUS *isc_status)
+{
+	short code = isc_sqlcode(isc_status);
+	if (code != 0) {
+		char buf[1024];
+		isc_sql_interprete(code, buf, 1024);
+		rb_warning("%s(%d)", buf, code);
+	}
+}
+*/
+
 func (db *Database) Create() (*Connection, os.Error) {
 	var isc_status [20]C.ISC_STATUS
 	var handle C.isc_db_handle = 0
