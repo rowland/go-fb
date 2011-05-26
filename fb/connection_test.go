@@ -10,12 +10,13 @@ func TestExecute(t *testing.T) {
 	const SqlSelect = "SELECT * FROM RDB$DATABASE"
 
 	os.Remove(TestFilename)
-	defer os.Remove(TestFilename)
 
 	conn, err := Create(TestConnectionString)
 	if err != nil {
 		t.Fatalf("Unexpected error creating database: %s", err)
 	}
+	defer conn.Drop()
+
 	if conn.TransactionStarted() {
 		t.Fatal("Transaction should not be started before a statement is executed.")
 	}
@@ -34,5 +35,4 @@ func TestExecute(t *testing.T) {
 	if conn.TransactionStarted() {
 		t.Fatal("Transaction should not be started after transaction is committed.")
 	}
-	conn.Drop()
 }
