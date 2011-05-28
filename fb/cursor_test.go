@@ -45,3 +45,30 @@ func TestFetch(t *testing.T) {
 		t.Errorf("Expected row[3] to be 'NONE', got '%v'", row[3])
 	}
 }
+
+func TestCursorFields(t *testing.T) {
+	const SqlSelect = "SELECT * FROM RDB$DATABASE"
+
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Error creating database: %s", err)
+	}
+	defer conn.Drop()
+	cursor, err := conn.Execute(SqlSelect)
+	if err != nil {
+		t.Fatalf("Error executing select statement: %s", err)
+	}
+	defer cursor.Close()
+
+	fields := cursor.Fields
+	if len(fields) != 4 {
+		t.Fatalf("Expected 4 fields, found %d", len(fields))
+	}
+	st := SuperTest{t, "Fields"}
+	st.Equal("RDB$DESCRIPTION", fields[0].Name)
+	st.Equal("RDB$RELATION_ID", fields[1].Name)
+	st.Equal("RDB$SECURITY_CLASS", fields[2].Name)
+	st.Equal("RDB$CHARACTER_SET_NAME", fields[3].Name)
+}

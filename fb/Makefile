@@ -2,6 +2,9 @@ include $(GOROOT)/src/Make.inc
 
 TARG=github.com/rowland/go-fb/fb
 
+GOFILES=\
+	field.go\
+
 CGOFILES=\
 	database.go\
 	connection.go\

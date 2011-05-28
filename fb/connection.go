@@ -101,7 +101,7 @@ func (conn *Connection) Execute(sql string, args ...interface{}) (cursor *Cursor
 
 func (conn *Connection) closeCursors() {
 	for _, cursor := range conn.cursors {
-		cursor.close()
+		cursor.Close()
 	}
 	conn.cursors = nil
 }

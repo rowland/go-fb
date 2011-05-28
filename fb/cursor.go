@@ -61,6 +61,8 @@ import "C"
 import (
 	"os"
 	"unsafe"
+	"strings"
+	"fmt"
 )
 
 type Cursor struct {
@@ -75,7 +77,7 @@ type Cursor struct {
 	i_buffer_size C.long
 	o_buffer      *C.char
 	o_buffer_size C.long
-	// VALUE fields_ary
+	Fields        []*Field
 	// VALUE fields_hash;
 	// VALUE connection;
 }
@@ -113,7 +115,7 @@ func (cursor *Cursor) fbCursorDrop() (err os.Error) {
 
 func (cursor *Cursor) drop() (err os.Error) {
 	err = cursor.fbCursorDrop()
-	// fb_cursor->fields_ary = Qnil;
+	cursor.Fields = nil
 	// fb_cursor->fields_hash = Qnil;
 	for i, c := range cursor.connection.cursors {
 		if c == cursor {
@@ -369,11 +371,162 @@ static void fb_cursor_set_inputparams(struct FbCursor *fb_cursor, long argc, VAL
 */
 
 func (cursor *Cursor) executeWithParams(args []interface{}) {
-
+	// TODO: implement
 }
 
 func (cursor *Cursor) rowsAffected(statement C.long) int {
+	// TODO: implement
 	return 0
+}
+
+func noLowercase(s string) bool {
+	// TODO: implement
+	return true
+}
+
+func sqlTypeFromCode(code, subType C.ISC_SHORT) string {
+	switch code {
+	case C.SQL_TEXT, C.blr_text:
+		return "CHAR"
+	case C.SQL_VARYING, C.blr_varying:
+		return "VARCHAR"
+	case C.SQL_SHORT, C.blr_short:
+		switch subType {
+		case 0:
+			return "SMALLINT"
+		case 1:
+			return "NUMERIC"
+		case 2:
+			return "DECIMAL"
+		}
+	case C.SQL_LONG, C.blr_long:
+		switch subType {
+		case 0:
+			return "INTEGER"
+		case 1:
+			return "NUMERIC"
+		case 2:
+			return "DECIMAL"
+		}
+		break
+	case C.SQL_FLOAT, C.blr_float:
+		return "FLOAT"
+	case C.SQL_DOUBLE, C.blr_double:
+		switch subType {
+		case 0:
+			return "DOUBLE PRECISION"
+		case 1:
+			return "NUMERIC"
+		case 2:
+			return "DECIMAL"
+		}
+	case C.SQL_D_FLOAT, C.blr_d_float:
+		return "DOUBLE PRECISION"
+	case C.SQL_TIMESTAMP, C.blr_timestamp:
+		return "TIMESTAMP"
+	case C.SQL_BLOB, C.blr_blob:
+		return "BLOB"
+	case C.SQL_ARRAY:
+		return "ARRAY"
+	case C.SQL_QUAD, C.blr_quad:
+		return "DECIMAL"
+	case C.SQL_TYPE_TIME, C.blr_sql_time:
+		return "TIME"
+	case C.SQL_TYPE_DATE, C.blr_sql_date:
+		return "DATE"
+	case C.SQL_INT64, C.blr_int64:
+		switch subType {
+		case 0:
+			return "BIGINT"
+		case 1:
+			return "NUMERIC"
+		case 2:
+			return "DECIMAL"
+		}
+	}
+	return fmt.Sprintf("UNKNOWN %d, %d", code, subType)
+}
+
+func precisionFromSqlvar(sqlvar *C.XSQLVAR) int {
+	switch sqlvar.sqltype & ^1 {
+	case C.SQL_SHORT:
+		switch sqlvar.sqlsubtype {
+		case 0:
+			return 0
+		case 1:
+			return 4
+		case 2:
+			return 4
+		}
+	case C.SQL_LONG:
+		switch sqlvar.sqlsubtype {
+		case 0:
+			return 0
+		case 1:
+			return 9
+		case 2:
+			return 9
+		}
+	case C.SQL_DOUBLE, C.SQL_D_FLOAT:
+		switch sqlvar.sqlsubtype {
+		case 0:
+			return -1
+		case 1:
+			return 15
+		case 2:
+			return 15
+		}
+	case C.SQL_INT64:
+		switch sqlvar.sqlsubtype {
+		case 0:
+			return 0
+		case 1:
+			return 18
+		case 2:
+			return 18
+		}
+		break
+	}
+	return -1
+}
+
+func fieldsFromSqlda(sqlda *C.XSQLDA, lowercaseNames bool) []*Field {
+	cols := sqlda.sqld
+	if cols == 0 {
+		return nil
+	}
+
+	ary := make([]*Field, cols)
+	for count := C.ISC_SHORT(0); count < cols; count++ {
+		var field Field
+
+		sqlvar := C.sqlda_sqlvar(sqlda, count)
+		dtp := sqlvar.sqltype & ^1
+
+		if sqlvar.aliasname_length > 0 {
+			field.Name = C.GoStringN((*C.char)(unsafe.Pointer(&sqlvar.aliasname[0])), C.int(sqlvar.aliasname_length))
+		} else {
+			field.Name = C.GoStringN((*C.char)(unsafe.Pointer(&sqlvar.sqlname[0])), C.int(sqlvar.sqlname_length))
+		}
+		if lowercaseNames && noLowercase(field.Name) {
+			field.Name = strings.ToLower(field.Name)
+		}
+		field.TypeCode = int(sqlvar.sqltype & ^1)
+		field.SqlType = sqlTypeFromCode(dtp, sqlvar.sqlsubtype)
+		field.SqlSubtype = int(sqlvar.sqlsubtype)
+		field.DisplaySize = int(sqlvar.sqllen)
+		if dtp == C.SQL_VARYING {
+			field.InternalSize = int(sqlvar.sqllen + C.SHORT_SIZE)
+		} else {
+			field.InternalSize = int(sqlvar.sqllen)
+		}
+		field.Precision = precisionFromSqlvar(sqlvar)
+		field.Scale = int(sqlvar.sqlscale)
+		field.Nullable = (sqlvar.sqltype & 1) != 0
+
+		ary[count] = &field
+	}
+	return ary
 }
 
 func (cursor *Cursor) execute2(sql string, args ...interface{}) (rowsAffected int, err os.Error) {
@@ -470,7 +623,8 @@ func (cursor *Cursor) execute2(sql string, args ...interface{}) (rowsAffected in
 			cursor.o_buffer_size = length
 		}
 
-		// Set the description attributes 
+		// Set the description attributes
+		cursor.Fields = fieldsFromSqlda(cursor.o_sqlda, cursor.connection.database.LowercaseNames)
 		// cursor.fields_ary = fb_cursor_fields_ary(cursor.o_sqlda, fb_connection.downcase_names);
 		// cursor.fields_hash = fb_cursor_fields_hash(cursor.fields_ary);
 	} else {
@@ -529,7 +683,7 @@ func (cursor *Cursor) check() os.Error {
 	return nil
 }
 
-func (cursor *Cursor) close() (err os.Error) {
+func (cursor *Cursor) Close() (err os.Error) {
 	var isc_status [20]C.ISC_STATUS
 
 	if err = cursor.check(); err != nil {
@@ -591,52 +745,7 @@ func (cursor *Cursor) prep() (err os.Error) {
 	}
 	return
 }
-/*
-static void fb_cursor_fetch_prep(struct FbCursor *fb_cursor)
-{
-	struct FbConnection *fb_connection;
-	long cols;
-	long count;
-	XSQLVAR *var;
-	short dtp;
-	long length;
-	long alignment;
-	long offset;
 
-	fb_cursor_check(fb_cursor);
-
-	Data_Get_Struct(fb_cursor->connection, struct FbConnection, fb_connection);
-	fb_connection_check(fb_connection);
-
-	 // Check if open cursor 
-	if (!fb_cursor->open) {
-		rb_raise(rb_eFbError, "The cursor has not been opened. Use execute(query)");
-	}
-	 // Describe output SQLDA 
-	isc_dsql_describe(fb_connection->isc_status, &fb_cursor->stmt, 1, fb_cursor->o_sqlda);
-	fb_error_check(fb_connection->isc_status);
-
-	 // Set the output SQLDA 
-	cols = fb_cursor->o_sqlda->sqld;
-	for (var = fb_cursor->o_sqlda->sqlvar, offset = 0, count = 0; count < cols; var++, count++) {
-		length = alignment = var->sqllen;
-		dtp = var->sqltype & ~1;
-
-		if (dtp == SQL_TEXT) {
-			alignment = 1;
-		} else if (dtp == SQL_VARYING) {
-			length += sizeof(short);
-			alignment = sizeof(short);
-		}
-		offset = FB_ALIGN(offset, alignment);
-		var->sqldata = (char*)(fb_cursor->o_buffer + offset);
-		offset += length;
-		offset = FB_ALIGN(offset, sizeof(short));
-		var->sqlind = (short*)(fb_cursor->o_buffer + offset);
-		offset += sizeof(short);
-	}
-}
-*/
 func (cursor *Cursor) Fetch(row interface{}) (err os.Error) {
 	const SQLCODE_NOMORE = 100
 	var isc_status [20]C.ISC_STATUS
