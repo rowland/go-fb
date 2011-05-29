@@ -63,6 +63,7 @@ import (
 	"unsafe"
 	"strings"
 	"fmt"
+	"regexp"
 )
 
 type Cursor struct {
@@ -379,9 +380,10 @@ func (cursor *Cursor) rowsAffected(statement C.long) int {
 	return 0
 }
 
-func noLowercase(s string) bool {
-	// TODO: implement
-	return true
+var reLowercase = regexp.MustCompile("[a-z]")
+
+func hasLowercase(s string) bool {
+	return reLowercase.MatchString(s)
 }
 
 func sqlTypeFromCode(code, subType C.ISC_SHORT) string {
@@ -508,7 +510,7 @@ func fieldsFromSqlda(sqlda *C.XSQLDA, lowercaseNames bool) []*Field {
 		} else {
 			field.Name = C.GoStringN((*C.char)(unsafe.Pointer(&sqlvar.sqlname[0])), C.int(sqlvar.sqlname_length))
 		}
-		if lowercaseNames && noLowercase(field.Name) {
+		if lowercaseNames && !hasLowercase(field.Name) {
 			field.Name = strings.ToLower(field.Name)
 		}
 		field.TypeCode = int(sqlvar.sqltype & ^1)
