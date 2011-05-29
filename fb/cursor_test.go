@@ -99,3 +99,30 @@ func TestCursorFieldsLowercased(t *testing.T) {
 	st.Equal("rdb$security_class", fields[2].Name)
 	st.Equal("rdb$character_set_name", fields[3].Name)
 }
+
+func TestCursorFieldsMap(t *testing.T) {
+	const SqlSelect = "SELECT * FROM RDB$DATABASE"
+
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Error creating database: %s", err)
+	}
+	defer conn.Drop()
+	cursor, err := conn.Execute(SqlSelect)
+	if err != nil {
+		t.Fatalf("Error executing select statement: %s", err)
+	}
+	defer cursor.Close()
+
+	fields := cursor.FieldsMap
+	if len(fields) != 4 {
+		t.Fatalf("Expected 4 fields, found %d", len(fields))
+	}
+	st := SuperTest{t, "Fields"}
+	st.Equal(520, fields["RDB$DESCRIPTION"].TypeCode)
+	st.Equal(500, fields["RDB$RELATION_ID"].TypeCode)
+	st.Equal(452, fields["RDB$SECURITY_CLASS"].TypeCode)
+	st.Equal(452, fields["RDB$CHARACTER_SET_NAME"].TypeCode)
+}

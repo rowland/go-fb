@@ -79,7 +79,7 @@ type Cursor struct {
 	o_buffer      *C.char
 	o_buffer_size C.long
 	Fields        []*Field
-	// VALUE fields_hash;
+	FieldsMap     map[string]*Field
 	// VALUE connection;
 }
 
@@ -117,7 +117,7 @@ func (cursor *Cursor) fbCursorDrop() (err os.Error) {
 func (cursor *Cursor) drop() (err os.Error) {
 	err = cursor.fbCursorDrop()
 	cursor.Fields = nil
-	// fb_cursor->fields_hash = Qnil;
+	cursor.FieldsMap = nil
 	for i, c := range cursor.connection.cursors {
 		if c == cursor {
 			cursor.connection.cursors[i] = nil
@@ -531,6 +531,14 @@ func fieldsFromSqlda(sqlda *C.XSQLDA, lowercaseNames bool) []*Field {
 	return ary
 }
 
+func fieldsMapFromSlice(fields []*Field) map[string]*Field {
+	m := make(map[string]*Field, len(fields))
+	for _, f := range fields {
+		m[f.Name] = f
+	}
+	return m
+}
+
 func (cursor *Cursor) execute2(sql string, args ...interface{}) (rowsAffected int, err os.Error) {
 	const dialect = 1
 	var isc_status [20]C.ISC_STATUS
@@ -627,8 +635,7 @@ func (cursor *Cursor) execute2(sql string, args ...interface{}) (rowsAffected in
 
 		// Set the description attributes
 		cursor.Fields = fieldsFromSqlda(cursor.o_sqlda, cursor.connection.database.LowercaseNames)
-		// cursor.fields_ary = fb_cursor_fields_ary(cursor.o_sqlda, fb_connection.downcase_names);
-		// cursor.fields_hash = fb_cursor_fields_hash(cursor.fields_ary);
+		cursor.FieldsMap = fieldsMapFromSlice(cursor.Fields)
 	} else {
 		// execute statement if not query
 		if statement == C.isc_info_sql_stmt_start_trans {
@@ -704,8 +711,8 @@ func (cursor *Cursor) Close() (err os.Error) {
 		err = cursor.connection.Commit()
 		cursor.auto_transact = cursor.connection.transact
 	}
-	// fb_cursor->fields_ary = Qnil;
-	// fb_cursor->fields_hash = Qnil;
+	cursor.Fields = nil
+	cursor.FieldsMap = nil
 	return
 }
 
