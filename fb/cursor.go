@@ -83,7 +83,8 @@ type Cursor struct {
 	// VALUE connection;
 }
 
-const SQLDA_COLSINIT = 50
+const sqlda_colsinit = 50
+const dialect = 1
 
 func newCursor(conn *Connection) (cursor *Cursor, err os.Error) {
 	var isc_status [20]C.ISC_STATUS
@@ -92,8 +93,8 @@ func newCursor(conn *Connection) (cursor *Cursor, err os.Error) {
 		return
 	}
 	cursor = &Cursor{connection: conn}
-	cursor.i_sqlda = C.sqlda_alloc(SQLDA_COLSINIT)
-	cursor.o_sqlda = C.sqlda_alloc(SQLDA_COLSINIT)
+	cursor.i_sqlda = C.sqlda_alloc(sqlda_colsinit)
+	cursor.o_sqlda = C.sqlda_alloc(sqlda_colsinit)
 	C.isc_dsql_alloc_statement2(&isc_status[0], &conn.db, &cursor.stmt)
 	if err = fbErrorCheck(&isc_status); err != nil {
 		return
@@ -127,7 +128,7 @@ func (cursor *Cursor) drop() (err os.Error) {
 }
 
 func (cursor *Cursor) setInputParams(args []interface{}) {
-
+	// TODO: implement
 }
 /*
 static void fb_cursor_set_inputparams(struct FbCursor *fb_cursor, long argc, VALUE *argv)
@@ -540,7 +541,6 @@ func fieldsMapFromSlice(fields []*Field) map[string]*Field {
 }
 
 func (cursor *Cursor) execute2(sql string, args ...interface{}) (rowsAffected int, err os.Error) {
-	const dialect = 1
 	var isc_status [20]C.ISC_STATUS
 
 	// prepare query
@@ -574,7 +574,7 @@ func (cursor *Cursor) execute2(sql string, args ...interface{}) (rowsAffected in
 		return
 	}
 	// describe output parameters
-	C.isc_dsql_describe(&isc_status[0], &cursor.stmt, 1, cursor.o_sqlda)
+	C.isc_dsql_describe(&isc_status[0], &cursor.stmt, dialect, cursor.o_sqlda)
 	if err = fbErrorCheck(&isc_status); err != nil {
 		return
 	}
@@ -605,7 +605,7 @@ func (cursor *Cursor) execute2(sql string, args ...interface{}) (rowsAffected in
 			C.free(unsafe.Pointer(cursor.o_sqlda))
 			cursor.o_sqlda = C.sqlda_alloc(C.long(cols))
 			// describe again 
-			C.isc_dsql_describe(&isc_status[0], &cursor.stmt, 1, cursor.o_sqlda)
+			C.isc_dsql_describe(&isc_status[0], &cursor.stmt, dialect, cursor.o_sqlda)
 			if err = fbErrorCheck(&isc_status); err != nil {
 				return
 			}
@@ -729,7 +729,7 @@ func (cursor *Cursor) prep() (err os.Error) {
 	if err = cursor.connection.check(); err != nil {
 		return
 	}
-	C.isc_dsql_describe(&isc_status[0], &cursor.stmt, 1, cursor.o_sqlda)
+	C.isc_dsql_describe(&isc_status[0], &cursor.stmt, dialect, cursor.o_sqlda)
 	if err = fbErrorCheck(&isc_status); err != nil {
 		return
 	}
@@ -770,7 +770,7 @@ func (cursor *Cursor) Fetch(row interface{}) (err os.Error) {
 		return
 	}
 	// fetch one row 
-	if C.isc_dsql_fetch(&isc_status[0], &cursor.stmt, 1, cursor.o_sqlda) == SQLCODE_NOMORE {
+	if C.isc_dsql_fetch(&isc_status[0], &cursor.stmt, dialect, cursor.o_sqlda) == SQLCODE_NOMORE {
 		cursor.eof = true
 		err = os.EOF
 		return
