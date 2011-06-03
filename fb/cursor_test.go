@@ -78,7 +78,7 @@ func TestCursorFieldsLowercased(t *testing.T) {
 
 	os.Remove(TestFilename)
 
-	conn, err := Create(TestConnectionString+"lowercase_names=true;")
+	conn, err := Create(TestConnectionString + "lowercase_names=true;")
 	if err != nil {
 		t.Fatalf("Error creating database: %s", err)
 	}
@@ -125,4 +125,77 @@ func TestCursorFieldsMap(t *testing.T) {
 	st.Equal(500, fields["RDB$RELATION_ID"].TypeCode)
 	st.Equal(452, fields["RDB$SECURITY_CLASS"].TypeCode)
 	st.Equal(452, fields["RDB$CHARACTER_SET_NAME"].TypeCode)
+}
+
+func TestFetchAfterEnd(t *testing.T) {
+	const SqlCreateGen = "create generator test_seq"
+	const SqlSelectGen = "select gen_id(test_seq, 1) from rdb$database"
+
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Error creating database: %s", err)
+	}
+	defer conn.Drop()
+	_, err = conn.Execute(SqlCreateGen)
+	if err != nil {
+		t.Fatalf("Error executing create statement: %s", err)
+	}
+
+	cursor, err := conn.Execute(SqlSelectGen)
+	if err != nil {
+		t.Fatalf("Error executing select statement: %s", err)
+	}
+	defer cursor.Close()
+
+	var row []interface{}
+	if err = cursor.Fetch(&row); err != nil {
+		t.Fatalf("Error in fetch: %s", err)
+	}
+	if err = cursor.Fetch(&row); err != os.EOF {
+		t.Fatalf("Expecting os.EOF, got: %s", err)
+	}
+	err = cursor.Fetch(&row)
+	err2, ok := err.(*Error)
+	if !ok {
+		t.Fatalf("Expecting fb.Error, got: %s", reflect.TypeOf(err))
+	}
+	if err2.Message != "Cursor is past end of data." {
+		t.Errorf("Unexpected error message: %s", err2.Message)
+	}
+}
+
+func TestFetchAfterEnd2(t *testing.T) {
+	const SqlSelect = "select * from rdb$database"
+
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	cursor, err := conn.Execute(SqlSelect)
+	if err != nil {
+		t.Fatalf("Error executing select statement: %s", err)
+	}
+	defer cursor.Close()
+
+	var row []interface{}
+	if err = cursor.Fetch(&row); err != nil {
+		t.Fatalf("Error in fetch: %s", err)
+	}
+	if err = cursor.Fetch(&row); err != os.EOF {
+		t.Fatalf("Expecting os.EOF, got: %s", err)
+	}
+	err = cursor.Fetch(&row)
+	err2, ok := err.(*Error)
+	if !ok {
+		t.Fatalf("Expecting fb.Error, got: %s", reflect.TypeOf(err))
+	}
+	if err2.Message != "Cursor is past end of data." {
+		t.Errorf("Unexpected error message: %s", err2.Message)
+	}
 }
