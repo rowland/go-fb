@@ -183,9 +183,7 @@ func (cursor *Cursor) execute2(sql string, args ...interface{}) (rowsAffected in
 		} else if statement == C.isc_info_sql_stmt_rollback {
 			panic("use fb.Connection.Rollback()")
 		} else if in_params > 0 {
-			fmt.Println("EXECUTING WITH PARAMETERS")
 			if err = cursor.setInputParams(args); err != nil {
-				fmt.Println("Error in setInputParams")
 				return
 			}
 			C.isc_dsql_execute2(&isc_status[0], &cursor.connection.transact, &cursor.stmt, C.SQLDA_VERSION1, cursor.i_sqlda, (*C.XSQLDA)(nil))
@@ -216,12 +214,10 @@ func (cursor *Cursor) setInputParams(args []interface{}) (err os.Error) {
 
 			switch dtp {
 			case C.SQL_LONG:
-				fmt.Println("HERE WE ARE IN SQL_LONG")
 				var lvalue C.ISC_LONG
 				offset = fbAlign(offset, alignment)
 				ivar.sqldata = (*C.ISC_SCHAR)(unsafe.Pointer(uintptr(unsafe.Pointer(cursor.i_buffer)) + uintptr(offset)))
 				if ivar.sqlscale < 0 {
-					fmt.Println("CALCULATING RATIO")
 					ratio := 1
 					for scnt := C.ISC_SHORT(0); scnt > ivar.sqlscale; scnt-- {
 						ratio *= 10
@@ -234,28 +230,29 @@ func (cursor *Cursor) setInputParams(args []interface{}) (err os.Error) {
 					dvalue *= float64(ratio)
 					lvalue = C.ISC_LONG(dvalue + 0.5)
 				} else {
-					fmt.Println("LOOKING FOR AN INT64")
 					var ivalue int64
 					ivalue, err = int64FromIf(arg)
 					if err != nil {
-						fmt.Printf("UH OH.... %s\n", err)
 						return
 					}
-					fmt.Printf("FOUND INT64 %d\n", ivalue)
 					lvalue = C.ISC_LONG(ivalue)
 				}
 				if lvalue < -2147483647 || lvalue > 2147483647 {
 					return os.NewError("integer overflow")
 				}
-				fmt.Printf("Final answer: %d\n", lvalue)
 				*(*C.ISC_LONG)(unsafe.Pointer(ivar.sqldata)) = lvalue
-				fmt.Printf("After set: %d\n", *(*C.ISC_LONG)(unsafe.Pointer(ivar.sqldata)))
 				offset += alignment
 			default:
 				panic("Shouldn't reach here! (dtp not implemented)")
 			}
+
+			if ivar.sqltype & 1 != 0 {
+				offset = fbAlign(offset, C.SHORT_SIZE)
+				ivar.sqlind = (*C.ISC_SHORT)(unsafe.Pointer(uintptr(unsafe.Pointer(cursor.i_buffer)) + uintptr(offset)))
+				*ivar.sqlind = 0
+				offset += C.SHORT_SIZE
+			}
 		} else if ivar.sqltype&1 != 0 {
-			fmt.Println("arg is nil!!!!!")
 			ivar.sqldata = (*C.ISC_SCHAR)(nil)
 			offset = fbAlign(offset, C.SHORT_SIZE)
 			ivar.sqlind = (*C.ISC_SHORT)(unsafe.Pointer((uintptr(unsafe.Pointer(cursor.i_buffer)) + uintptr(offset))))
@@ -514,7 +511,6 @@ func (cursor *Cursor) executeWithParams(args []interface{}) (err os.Error) {
 	var isc_status [20]C.ISC_STATUS
 
 	if err = cursor.setInputParams(args); err != nil {
-		fmt.Println("Error in setInputParams")
 		return
 	}
 	C.isc_dsql_execute2(&isc_status[0], &cursor.connection.transact, &cursor.stmt, C.SQLDA_VERSION1, cursor.i_sqlda, (*C.XSQLDA)(nil))
@@ -831,10 +827,22 @@ func (cursor *Cursor) Fetch(row interface{}) (err os.Error) {
 					for scnt := C.ISC_SHORT(0); scnt > sqlvar.sqlscale; scnt-- {
 						ratio *= 10
 					}
-					dval := sval / ratio
+					dval := float64(sval) / float64(ratio)
 					val = dval
 				} else {
 					val = int16(sval)
+				}
+			case C.SQL_LONG:
+				lval := *(*C.ISC_LONG)(unsafe.Pointer(sqlvar.sqldata))
+				if sqlvar.sqlscale < 0 {
+					ratio := C.short(1)
+					for scnt := C.ISC_SHORT(0); scnt > sqlvar.sqlscale; scnt-- {
+						ratio *= 10
+					}
+					dval := float64(lval) / float64(ratio)
+					val = dval
+				} else {
+					val = int32(lval)
 				}
 			}
 		}
@@ -843,6 +851,8 @@ func (cursor *Cursor) Fetch(row interface{}) (err os.Error) {
 	switch row := row.(type) {
 	case *[]interface{}:
 		*row = ary
+	default:
+		err = os.NewError(fmt.Sprintf("Unsupported row type: %T", row))
 	}
 	return
 }

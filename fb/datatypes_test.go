@@ -143,7 +143,7 @@ func TestInsertCorrectTypes(t *testing.T) {
 				t.Errorf("Error in fetch: %s", err)
 				break
 			}
-			if vals[0].(int) != 500000 {
+			if vals[0].(int32) != 500000 {
 				t.Errorf("Expected %d, got %d", 500000, vals[0])
 			}
 		}
