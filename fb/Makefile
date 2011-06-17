@@ -4,6 +4,7 @@ TARG=github.com/rowland/go-fb/fb
 
 GOFILES=\
 	field.go\
+	support.go\
 
 CGOFILES=\
 	database.go\

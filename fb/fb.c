@@ -326,3 +326,51 @@ error:
 	*tpb_len = -1;
 	return desc;
 }
+
+XSQLDA* sqlda_alloc(long cols)
+{
+	XSQLDA *sqlda;
+
+	sqlda = (XSQLDA*)malloc(XSQLDA_LENGTH(cols));
+	sqlda->version = SQLDA_VERSION1;
+	sqlda->sqln = cols;
+	sqlda->sqld = 0;
+	return sqlda;
+}
+
+long calculate_buffsize(XSQLDA *sqlda)
+{
+	XSQLVAR *var;
+	long cols;
+	short dtp;
+	long offset = 0;
+	long alignment;
+	long length;
+	long count;
+
+	cols = sqlda->sqld;
+	var = sqlda->sqlvar;
+	for (count = 0; count < cols; var++,count++) {
+		length = alignment = var->sqllen;
+		dtp = var->sqltype & ~1;
+
+		if (dtp == SQL_TEXT) {
+			alignment = 1;
+		} else if (dtp == SQL_VARYING) {
+			length += sizeof(short);
+			alignment = sizeof(short);
+		}
+
+		offset = FB_ALIGN(offset, alignment);
+		offset += length;
+		offset = FB_ALIGN(offset, sizeof(short));
+		offset += sizeof(short);
+	}
+
+	return offset + sizeof(short);
+}
+
+XSQLVAR* sqlda_sqlvar(XSQLDA* sqlda, ISC_SHORT col) {
+	return sqlda->sqlvar + col;
+}
+

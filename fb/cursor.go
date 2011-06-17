@@ -3,58 +3,7 @@ package fb
 /*
 #include <ibase.h>
 #include <stdlib.h>
-
-#define	SQLDA_COLSINIT	50
-#define	FB_ALIGN(n, b)	((n + b - 1) & ~(b - 1))
-
-static XSQLDA* sqlda_alloc(long cols)
-{
-	XSQLDA *sqlda;
-
-	sqlda = (XSQLDA*)malloc(XSQLDA_LENGTH(cols));
-	sqlda->version = SQLDA_VERSION1;
-	sqlda->sqln = cols;
-	sqlda->sqld = 0;
-	return sqlda;
-}
-
-static long calculate_buffsize(XSQLDA *sqlda)
-{
-	XSQLVAR *var;
-	long cols;
-	short dtp;
-	long offset = 0;
-	long alignment;
-	long length;
-	long count;
-
-	cols = sqlda->sqld;
-	var = sqlda->sqlvar;
-	for (count = 0; count < cols; var++,count++) {
-		length = alignment = var->sqllen;
-		dtp = var->sqltype & ~1;
-
-		if (dtp == SQL_TEXT) {
-			alignment = 1;
-		} else if (dtp == SQL_VARYING) {
-			length += sizeof(short);
-			alignment = sizeof(short);
-		}
-
-		offset = FB_ALIGN(offset, alignment);
-		offset += length;
-		offset = FB_ALIGN(offset, sizeof(short));
-		offset += sizeof(short);
-	}
-
-	return offset + sizeof(short);
-}
-
-XSQLVAR* sqlda_sqlvar(XSQLDA* sqlda, ISC_SHORT col) {
-	return sqlda->sqlvar + col;
-}
-
-#define SHORT_SIZE sizeof(short)
+#include "fb.h"
 */
 import "C"
 
@@ -80,11 +29,9 @@ type Cursor struct {
 	o_buffer_size C.long
 	Fields        []*Field
 	FieldsMap     map[string]*Field
-	// VALUE connection;
 }
 
 const sqlda_colsinit = 50
-const dialect = 1
 
 func newCursor(conn *Connection) (cursor *Cursor, err os.Error) {
 	var isc_status [20]C.ISC_STATUS
@@ -102,7 +49,7 @@ func newCursor(conn *Connection) (cursor *Cursor, err os.Error) {
 	return cursor, nil
 }
 
-func (cursor *Cursor) fbCursorDrop() (err os.Error) {
+func (cursor *Cursor) execute(sql string, args ...interface{}) (rowsAffected int, err os.Error) {
 	var isc_status [20]C.ISC_STATUS
 
 	if cursor.open {
@@ -110,25 +57,216 @@ func (cursor *Cursor) fbCursorDrop() (err os.Error) {
 		if err = fbErrorCheck(&isc_status); err != nil {
 			return
 		}
+		cursor.open = false
 	}
-	C.isc_dsql_free_statement(&isc_status[0], &cursor.stmt, C.DSQL_drop)
-	return fbErrorCheck(&isc_status)
-}
-
-func (cursor *Cursor) drop() (err os.Error) {
-	err = cursor.fbCursorDrop()
-	cursor.Fields = nil
-	cursor.FieldsMap = nil
-	for i, c := range cursor.connection.cursors {
-		if c == cursor {
-			cursor.connection.cursors[i] = nil
+	if cursor.connection.TransactionStarted() {
+		rowsAffected, err = cursor.execute2(sql, args...)
+	} else {
+		cursor.connection.transactionStart(nil)
+		cursor.auto_transact = cursor.connection.transact
+		rowsAffected, err = cursor.execute2(sql, args...)
+		if err != nil {
+			cursor.connection.Rollback()
+		} else if rowsAffected < 0 {
+			cursor.connection.Commit()
 		}
 	}
 	return
 }
 
-func (cursor *Cursor) setInputParams(args []interface{}) {
-	// TODO: implement
+const nullTerminated = 0
+
+func (cursor *Cursor) execute2(sql string, args ...interface{}) (rowsAffected int, err os.Error) {
+	var isc_status [20]C.ISC_STATUS
+
+	// prepare query
+	sql2 := C.CString(sql)
+	defer C.free(unsafe.Pointer(sql2))
+	sql3 := (*C.ISC_SCHAR)(unsafe.Pointer(sql2))
+	C.isc_dsql_prepare(&isc_status[0], &cursor.connection.transact, &cursor.stmt, nullTerminated, sql3, C.SQLDA_VERSION1, cursor.o_sqlda)
+	if err = fbErrorCheck(&isc_status); err != nil {
+		return
+	}
+	// get statement type
+	isc_info_stmt := [...]C.ISC_SCHAR{C.isc_info_sql_stmt_type}
+	var isc_info_buff [16]C.ISC_SCHAR
+	C.isc_dsql_sql_info(&isc_status[0], &cursor.stmt,
+		C.short(unsafe.Sizeof(isc_info_stmt[0])), &isc_info_stmt[0],
+		C.short(unsafe.Sizeof(isc_info_buff[0])*16), &isc_info_buff[0])
+	if err = fbErrorCheck(&isc_status); err != nil {
+		return
+	}
+
+	var statement C.long
+	if isc_info_buff[0] == C.isc_info_sql_stmt_type {
+		length := C.isc_vax_integer(&isc_info_buff[1], 2)
+		statement = C.long(C.isc_vax_integer(&isc_info_buff[3], C.short(length)))
+	} else {
+		statement = 0
+	}
+	// describe input parameters
+	C.isc_dsql_describe_bind(&isc_status[0], &cursor.stmt, C.SQLDA_VERSION1, cursor.i_sqlda)
+	if err = fbErrorCheck(&isc_status); err != nil {
+		return
+	}
+	// describe output parameters
+	C.isc_dsql_describe(&isc_status[0], &cursor.stmt, C.SQLDA_VERSION1, cursor.o_sqlda)
+	if err = fbErrorCheck(&isc_status); err != nil {
+		return
+	}
+	// get number of parameters and reallocate SQLDA
+	in_params := cursor.i_sqlda.sqld
+	if cursor.i_sqlda.sqln < in_params {
+		C.free(unsafe.Pointer(cursor.i_sqlda))
+		cursor.i_sqlda = C.sqlda_alloc(C.long(in_params))
+		// describe again 
+		C.isc_dsql_describe_bind(&isc_status[0], &cursor.stmt, C.SQLDA_VERSION1, cursor.i_sqlda)
+		if err = fbErrorCheck(&isc_status); err != nil {
+			return
+		}
+	}
+	// get size of parameters buffer and reallocate it 
+	if in_params > 0 {
+		length := C.calculate_buffsize(cursor.i_sqlda)
+		if length > cursor.i_buffer_size {
+			cursor.i_buffer = (*C.char)(C.realloc(unsafe.Pointer(cursor.i_buffer), C.size_t(length)))
+			cursor.i_buffer_size = length
+		}
+	}
+	if cursor.o_sqlda.sqld != 0 {
+		// open cursor if statement is query 
+		// get number of columns and reallocate SQLDA 
+		cols := cursor.o_sqlda.sqld
+		if cursor.o_sqlda.sqln < cols {
+			C.free(unsafe.Pointer(cursor.o_sqlda))
+			cursor.o_sqlda = C.sqlda_alloc(C.long(cols))
+			// describe again 
+			C.isc_dsql_describe(&isc_status[0], &cursor.stmt, C.SQLDA_VERSION1, cursor.o_sqlda)
+			if err = fbErrorCheck(&isc_status); err != nil {
+				return
+			}
+		}
+
+		var i_sqlda *C.XSQLDA
+		if in_params > 0 {
+			if err = cursor.setInputParams(args); err != nil {
+				return
+			}
+			i_sqlda = cursor.i_sqlda
+		} else {
+			i_sqlda = (*C.XSQLDA)(nil)
+		}
+
+		// open cursor 
+		C.isc_dsql_execute2(&isc_status[0], &cursor.connection.transact, &cursor.stmt, C.SQLDA_VERSION1, i_sqlda, (*C.XSQLDA)(nil))
+		if err = fbErrorCheck(&isc_status); err != nil {
+			return
+		}
+		cursor.open = true
+
+		// get size of results buffer and reallocate it 
+		length := C.calculate_buffsize(cursor.o_sqlda)
+		if length > cursor.o_buffer_size {
+			cursor.o_buffer = (*C.char)(C.realloc(unsafe.Pointer(cursor.o_buffer), C.size_t(length)))
+			cursor.o_buffer_size = length
+		}
+
+		// Set the description attributes
+		cursor.Fields = fieldsFromSqlda(cursor.o_sqlda, cursor.connection.database.LowercaseNames)
+		cursor.FieldsMap = fieldsMapFromSlice(cursor.Fields)
+	} else {
+		// execute statement if not query
+		if statement == C.isc_info_sql_stmt_start_trans {
+			panic("use fb.Connection.Transaction()")
+		} else if statement == C.isc_info_sql_stmt_commit {
+			panic("use fb.Connection.Commit()")
+		} else if statement == C.isc_info_sql_stmt_rollback {
+			panic("use fb.Connection.Rollback()")
+		} else if in_params > 0 {
+			fmt.Println("EXECUTING WITH PARAMETERS")
+			if err = cursor.setInputParams(args); err != nil {
+				fmt.Println("Error in setInputParams")
+				return
+			}
+			C.isc_dsql_execute2(&isc_status[0], &cursor.connection.transact, &cursor.stmt, C.SQLDA_VERSION1, cursor.i_sqlda, (*C.XSQLDA)(nil))
+			if err = fbErrorCheck(&isc_status); err != nil {
+				return
+			}
+		} else {
+			C.isc_dsql_execute2(&isc_status[0], &cursor.connection.transact, &cursor.stmt, C.SQLDA_VERSION1, (*C.XSQLDA)(nil), (*C.XSQLDA)(nil))
+			if err = fbErrorCheck(&isc_status); err != nil {
+				return
+			}
+		}
+		rowsAffected = cursor.rowsAffected(statement)
+	}
+	return
+}
+
+func (cursor *Cursor) setInputParams(args []interface{}) (err os.Error) {
+	if int(cursor.i_sqlda.sqld) != len(args) {
+		return os.NewError(fmt.Sprintf("statement requires %d items; %d given", cursor.i_sqlda.sqld, len(args)))
+	}
+	offset := C.ISC_SHORT(0)
+	for count, arg := range args {
+		ivar := C.sqlda_sqlvar(cursor.i_sqlda, C.ISC_SHORT(count))
+		if arg != nil {
+			dtp := ivar.sqltype & ^1 // erase null flag
+			alignment := ivar.sqllen
+
+			switch dtp {
+			case C.SQL_LONG:
+				fmt.Println("HERE WE ARE IN SQL_LONG")
+				var lvalue C.ISC_LONG
+				offset = fbAlign(offset, alignment)
+				ivar.sqldata = (*C.ISC_SCHAR)(unsafe.Pointer(uintptr(unsafe.Pointer(cursor.i_buffer)) + uintptr(offset)))
+				if ivar.sqlscale < 0 {
+					fmt.Println("CALCULATING RATIO")
+					ratio := 1
+					for scnt := C.ISC_SHORT(0); scnt > ivar.sqlscale; scnt-- {
+						ratio *= 10
+					}
+					var dvalue float64
+					dvalue, err = float64FromIf(arg)
+					if err != nil {
+						return
+					}
+					dvalue *= float64(ratio)
+					lvalue = C.ISC_LONG(dvalue + 0.5)
+				} else {
+					fmt.Println("LOOKING FOR AN INT64")
+					var ivalue int64
+					ivalue, err = int64FromIf(arg)
+					if err != nil {
+						fmt.Printf("UH OH.... %s\n", err)
+						return
+					}
+					fmt.Printf("FOUND INT64 %d\n", ivalue)
+					lvalue = C.ISC_LONG(ivalue)
+				}
+				if lvalue < -2147483647 || lvalue > 2147483647 {
+					return os.NewError("integer overflow")
+				}
+				fmt.Printf("Final answer: %d\n", lvalue)
+				*(*C.ISC_LONG)(unsafe.Pointer(ivar.sqldata)) = lvalue
+				fmt.Printf("After set: %d\n", *(*C.ISC_LONG)(unsafe.Pointer(ivar.sqldata)))
+				offset += alignment
+			default:
+				panic("Shouldn't reach here! (dtp not implemented)")
+			}
+		} else if ivar.sqltype&1 != 0 {
+			fmt.Println("arg is nil!!!!!")
+			ivar.sqldata = (*C.ISC_SCHAR)(nil)
+			offset = fbAlign(offset, C.SHORT_SIZE)
+			ivar.sqlind = (*C.ISC_SHORT)(unsafe.Pointer((uintptr(unsafe.Pointer(cursor.i_buffer)) + uintptr(offset))))
+			*ivar.sqlind = -1
+
+			offset += C.SHORT_SIZE
+		} else {
+			return os.NewError("specified column is not permitted to be null")
+		}
+	}
+	return nil
 }
 /*
 static void fb_cursor_set_inputparams(struct FbCursor *fb_cursor, long argc, VALUE *argv)
@@ -372,8 +510,40 @@ static void fb_cursor_set_inputparams(struct FbCursor *fb_cursor, long argc, VAL
 }
 */
 
-func (cursor *Cursor) executeWithParams(args []interface{}) {
-	// TODO: implement
+func (cursor *Cursor) executeWithParams(args []interface{}) (err os.Error) {
+	var isc_status [20]C.ISC_STATUS
+
+	if err = cursor.setInputParams(args); err != nil {
+		fmt.Println("Error in setInputParams")
+		return
+	}
+	C.isc_dsql_execute2(&isc_status[0], &cursor.connection.transact, &cursor.stmt, C.SQLDA_VERSION1, cursor.i_sqlda, (*C.XSQLDA)(nil))
+	return fbErrorCheck(&isc_status)
+}
+
+func (cursor *Cursor) fbCursorDrop() (err os.Error) {
+	var isc_status [20]C.ISC_STATUS
+
+	if cursor.open {
+		C.isc_dsql_free_statement(&isc_status[0], &cursor.stmt, C.DSQL_close)
+		if err = fbErrorCheck(&isc_status); err != nil {
+			return
+		}
+	}
+	C.isc_dsql_free_statement(&isc_status[0], &cursor.stmt, C.DSQL_drop)
+	return fbErrorCheck(&isc_status)
+}
+
+func (cursor *Cursor) drop() (err os.Error) {
+	err = cursor.fbCursorDrop()
+	cursor.Fields = nil
+	cursor.FieldsMap = nil
+	for i, c := range cursor.connection.cursors {
+		if c == cursor {
+			cursor.connection.cursors[i] = nil
+		}
+	}
+	return
 }
 
 func (cursor *Cursor) rowsAffected(statement C.long) int {
@@ -540,148 +710,6 @@ func fieldsMapFromSlice(fields []*Field) map[string]*Field {
 	return m
 }
 
-func (cursor *Cursor) execute2(sql string, args ...interface{}) (rowsAffected int, err os.Error) {
-	var isc_status [20]C.ISC_STATUS
-
-	// prepare query
-	sql2 := C.CString(sql)
-	defer C.free(unsafe.Pointer(sql2))
-	sql3 := (*C.ISC_SCHAR)(unsafe.Pointer(sql2))
-	C.isc_dsql_prepare(&isc_status[0], &cursor.connection.transact, &cursor.stmt, 0, sql3, cursor.connection.dialect, cursor.o_sqlda)
-	if err = fbErrorCheck(&isc_status); err != nil {
-		return
-	}
-	// get statement type
-	isc_info_stmt := [...]C.ISC_SCHAR{C.isc_info_sql_stmt_type}
-	var isc_info_buff [16]C.ISC_SCHAR
-	C.isc_dsql_sql_info(&isc_status[0], &cursor.stmt,
-		C.short(unsafe.Sizeof(isc_info_stmt[0])), &isc_info_stmt[0],
-		C.short(unsafe.Sizeof(isc_info_buff[0])*16), &isc_info_buff[0])
-	if err = fbErrorCheck(&isc_status); err != nil {
-		return
-	}
-
-	var statement C.long
-	if isc_info_buff[0] == C.isc_info_sql_stmt_type {
-		length := C.isc_vax_integer(&isc_info_buff[1], 2)
-		statement = C.long(C.isc_vax_integer(&isc_info_buff[3], C.short(length)))
-	} else {
-		statement = 0
-	}
-	// describe input parameters
-	C.isc_dsql_describe_bind(&isc_status[0], &cursor.stmt, dialect, cursor.i_sqlda)
-	if err = fbErrorCheck(&isc_status); err != nil {
-		return
-	}
-	// describe output parameters
-	C.isc_dsql_describe(&isc_status[0], &cursor.stmt, dialect, cursor.o_sqlda)
-	if err = fbErrorCheck(&isc_status); err != nil {
-		return
-	}
-	// get number of parameters and reallocate SQLDA
-	in_params := cursor.i_sqlda.sqld
-	if cursor.i_sqlda.sqln < in_params {
-		C.free(unsafe.Pointer(cursor.i_sqlda))
-		cursor.i_sqlda = C.sqlda_alloc(C.long(in_params))
-		// describe again 
-		C.isc_dsql_describe_bind(&isc_status[0], &cursor.stmt, dialect, cursor.i_sqlda)
-		if err = fbErrorCheck(&isc_status); err != nil {
-			return
-		}
-	}
-	// get size of parameters buffer and reallocate it 
-	if in_params > 0 {
-		length := C.calculate_buffsize(cursor.i_sqlda)
-		if length > cursor.i_buffer_size {
-			cursor.i_buffer = (*C.char)(C.realloc(unsafe.Pointer(cursor.i_buffer), C.size_t(length)))
-			cursor.i_buffer_size = length
-		}
-	}
-	if cursor.o_sqlda.sqld != 0 {
-		// open cursor if statement is query 
-		// get number of columns and reallocate SQLDA 
-		cols := cursor.o_sqlda.sqld
-		if cursor.o_sqlda.sqln < cols {
-			C.free(unsafe.Pointer(cursor.o_sqlda))
-			cursor.o_sqlda = C.sqlda_alloc(C.long(cols))
-			// describe again 
-			C.isc_dsql_describe(&isc_status[0], &cursor.stmt, dialect, cursor.o_sqlda)
-			if err = fbErrorCheck(&isc_status); err != nil {
-				return
-			}
-		}
-
-		var i_sqlda *C.XSQLDA
-		if in_params > 0 {
-			cursor.setInputParams(args)
-			i_sqlda = cursor.i_sqlda
-		} else {
-			i_sqlda = (*C.XSQLDA)(nil)
-		}
-
-		// open cursor 
-		C.isc_dsql_execute2(&isc_status[0], &cursor.connection.transact, &cursor.stmt, C.SQLDA_VERSION1, i_sqlda, (*C.XSQLDA)(nil))
-		if err = fbErrorCheck(&isc_status); err != nil {
-			return
-		}
-		cursor.open = true
-
-		// get size of results buffer and reallocate it 
-		length := C.calculate_buffsize(cursor.o_sqlda)
-		if length > cursor.o_buffer_size {
-			cursor.o_buffer = (*C.char)(C.realloc(unsafe.Pointer(cursor.o_buffer), C.size_t(length)))
-			cursor.o_buffer_size = length
-		}
-
-		// Set the description attributes
-		cursor.Fields = fieldsFromSqlda(cursor.o_sqlda, cursor.connection.database.LowercaseNames)
-		cursor.FieldsMap = fieldsMapFromSlice(cursor.Fields)
-	} else {
-		// execute statement if not query
-		if statement == C.isc_info_sql_stmt_start_trans {
-			panic("use fb.Connection.Transaction()")
-		} else if statement == C.isc_info_sql_stmt_commit {
-			panic("use fb.Connection.Commit()")
-		} else if statement == C.isc_info_sql_stmt_rollback {
-			panic("use fb.Connection.Rollback()")
-		} else if in_params > 0 {
-			cursor.executeWithParams(args)
-		} else {
-			C.isc_dsql_execute2(&isc_status[0], &cursor.connection.transact, &cursor.stmt, C.SQLDA_VERSION1, (*C.XSQLDA)(nil), (*C.XSQLDA)(nil))
-			if err = fbErrorCheck(&isc_status); err != nil {
-				return
-			}
-		}
-		rowsAffected = cursor.rowsAffected(statement)
-	}
-	return
-}
-
-func (cursor *Cursor) execute(sql string, args ...interface{}) (rowsAffected int, err os.Error) {
-	var isc_status [20]C.ISC_STATUS
-
-	if cursor.open {
-		C.isc_dsql_free_statement(&isc_status[0], &cursor.stmt, C.DSQL_close)
-		if err = fbErrorCheck(&isc_status); err != nil {
-			return
-		}
-		cursor.open = false
-	}
-	if cursor.connection.TransactionStarted() {
-		rowsAffected, err = cursor.execute2(sql, args...)
-	} else {
-		cursor.connection.transactionStart(nil)
-		cursor.auto_transact = cursor.connection.transact
-		rowsAffected, err = cursor.execute2(sql, args...)
-		if err != nil {
-			cursor.connection.Rollback()
-		} else if rowsAffected < 0 {
-			cursor.connection.Commit()
-		}
-	}
-	return
-}
-
 func (cursor *Cursor) check() os.Error {
 	if cursor.stmt == 0 {
 		return &Error{Message: "dropped cursor"}
@@ -729,7 +757,7 @@ func (cursor *Cursor) prep() (err os.Error) {
 	if err = cursor.connection.check(); err != nil {
 		return
 	}
-	C.isc_dsql_describe(&isc_status[0], &cursor.stmt, dialect, cursor.o_sqlda)
+	C.isc_dsql_describe(&isc_status[0], &cursor.stmt, C.SQLDA_VERSION1, cursor.o_sqlda)
 	if err = fbErrorCheck(&isc_status); err != nil {
 		return
 	}
@@ -770,7 +798,7 @@ func (cursor *Cursor) Fetch(row interface{}) (err os.Error) {
 		return
 	}
 	// fetch one row 
-	if C.isc_dsql_fetch(&isc_status[0], &cursor.stmt, dialect, cursor.o_sqlda) == SQLCODE_NOMORE {
+	if C.isc_dsql_fetch(&isc_status[0], &cursor.stmt, C.SQLDA_VERSION1, cursor.o_sqlda) == SQLCODE_NOMORE {
 		cursor.eof = true
 		err = os.EOF
 		return

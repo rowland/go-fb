@@ -16,6 +16,7 @@ import "C"
 import (
 	"os"
 	"unsafe"
+	"strings"
 )
 
 type Connection struct {
@@ -95,6 +96,18 @@ func (conn *Connection) Execute(sql string, args ...interface{}) (cursor *Cursor
 	rowsAffected, err := cursor.execute(sql, args...)
 	if rowsAffected >= 0 {
 		conn.rowsAffected = rowsAffected
+	}
+	return
+}
+
+func (conn *Connection) ExecuteScript(sql string) (err os.Error) {
+	// TODO: handle "set term"
+	script := strings.Split(sql, ";", -1)
+	for _, stmt := range script {
+		_, err = conn.Execute(stmt)
+		if err != nil {
+			return
+		}
 	}
 	return
 }

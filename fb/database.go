@@ -135,17 +135,6 @@ func fbErrorCheckWarn(isc_status *[20]C.ISC_STATUS) os.Error {
 	}
 	return nil
 }
-/*
-static void fb_error_check_warn(ISC_STATUS *isc_status)
-{
-	short code = isc_sqlcode(isc_status);
-	if (code != 0) {
-		char buf[1024];
-		isc_sql_interprete(code, buf, 1024);
-		rb_warning("%s(%d)", buf, code);
-	}
-}
-*/
 
 func (db *Database) Create() (*Connection, os.Error) {
 	var isc_status [20]C.ISC_STATUS
