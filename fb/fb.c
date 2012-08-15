@@ -1,5 +1,6 @@
 #include <ibase.h>
 #include <stdlib.h>
+#include <string.h>
 #include "_cgo_export.h"
 #include "fb.h"
 
@@ -74,7 +75,7 @@ static trans_opts	trans_opt_S[] =
 	{0,		0,		0,		0,	0}
 };
 
-char* trans_parseopts(char *opt, long *tpb_len)
+const char* trans_parseopts(char *opt, long *tpb_len)
 {
 	char *s, *trans;
 	long used;

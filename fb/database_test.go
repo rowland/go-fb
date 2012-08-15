@@ -131,7 +131,7 @@ func TestCreate2(t *testing.T) {
 	if err == nil {
 		t.Error("Expected error creating database.")
 	}
-	if err.String() != CreateErrorMessage {
+	if err.Error() != CreateErrorMessage {
 		t.Logf("Unexpected error message: %s", err)
 		t.Logf("Expected message: %s", CreateErrorMessage)
 		t.Fail()

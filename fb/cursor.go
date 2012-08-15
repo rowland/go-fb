@@ -59,11 +59,11 @@ XSQLVAR* sqlda_sqlvar(XSQLDA* sqlda, ISC_SHORT col) {
 import "C"
 
 import (
-	"os"
-	"unsafe"
-	"strings"
 	"fmt"
+	"io"
 	"regexp"
+	"strings"
+	"unsafe"
 )
 
 type Cursor struct {
@@ -85,7 +85,7 @@ type Cursor struct {
 
 const SQLDA_COLSINIT = 50
 
-func newCursor(conn *Connection) (cursor *Cursor, err os.Error) {
+func newCursor(conn *Connection) (cursor *Cursor, err error) {
 	var isc_status [20]C.ISC_STATUS
 
 	if err = conn.check(); err != nil {
@@ -101,7 +101,7 @@ func newCursor(conn *Connection) (cursor *Cursor, err os.Error) {
 	return cursor, nil
 }
 
-func (cursor *Cursor) fbCursorDrop() (err os.Error) {
+func (cursor *Cursor) fbCursorDrop() (err error) {
 	var isc_status [20]C.ISC_STATUS
 
 	if cursor.open {
@@ -114,7 +114,7 @@ func (cursor *Cursor) fbCursorDrop() (err os.Error) {
 	return fbErrorCheck(&isc_status)
 }
 
-func (cursor *Cursor) drop() (err os.Error) {
+func (cursor *Cursor) drop() (err error) {
 	err = cursor.fbCursorDrop()
 	cursor.Fields = nil
 	cursor.FieldsMap = nil
@@ -129,6 +129,7 @@ func (cursor *Cursor) drop() (err os.Error) {
 func (cursor *Cursor) setInputParams(args []interface{}) {
 
 }
+
 /*
 static void fb_cursor_set_inputparams(struct FbCursor *fb_cursor, long argc, VALUE *argv)
 {
@@ -539,7 +540,7 @@ func fieldsMapFromSlice(fields []*Field) map[string]*Field {
 	return m
 }
 
-func (cursor *Cursor) execute2(sql string, args ...interface{}) (rowsAffected int, err os.Error) {
+func (cursor *Cursor) execute2(sql string, args ...interface{}) (rowsAffected int, err error) {
 	const dialect = 1
 	var isc_status [20]C.ISC_STATUS
 
@@ -657,7 +658,7 @@ func (cursor *Cursor) execute2(sql string, args ...interface{}) (rowsAffected in
 	return
 }
 
-func (cursor *Cursor) execute(sql string, args ...interface{}) (rowsAffected int, err os.Error) {
+func (cursor *Cursor) execute(sql string, args ...interface{}) (rowsAffected int, err error) {
 	var isc_status [20]C.ISC_STATUS
 
 	if cursor.open {
@@ -682,7 +683,7 @@ func (cursor *Cursor) execute(sql string, args ...interface{}) (rowsAffected int
 	return
 }
 
-func (cursor *Cursor) check() os.Error {
+func (cursor *Cursor) check() error {
 	if cursor.stmt == 0 {
 		return &Error{Message: "dropped cursor"}
 	}
@@ -692,7 +693,7 @@ func (cursor *Cursor) check() os.Error {
 	return nil
 }
 
-func (cursor *Cursor) Close() (err os.Error) {
+func (cursor *Cursor) Close() (err error) {
 	var isc_status [20]C.ISC_STATUS
 
 	if err = cursor.check(); err != nil {
@@ -720,7 +721,7 @@ func fbAlign(n C.ISC_SHORT, b C.ISC_SHORT) C.ISC_SHORT {
 	return (n + b - 1) & ^(b - 1)
 }
 
-func (cursor *Cursor) prep() (err os.Error) {
+func (cursor *Cursor) prep() (err error) {
 	var isc_status [20]C.ISC_STATUS
 
 	if err = cursor.check(); err != nil {
@@ -755,7 +756,7 @@ func (cursor *Cursor) prep() (err os.Error) {
 	return
 }
 
-func (cursor *Cursor) Fetch(row interface{}) (err os.Error) {
+func (cursor *Cursor) Fetch(row interface{}) (err error) {
 	const SQLCODE_NOMORE = 100
 	var isc_status [20]C.ISC_STATUS
 
@@ -772,7 +773,7 @@ func (cursor *Cursor) Fetch(row interface{}) (err os.Error) {
 	// fetch one row 
 	if C.isc_dsql_fetch(&isc_status[0], &cursor.stmt, 1, cursor.o_sqlda) == SQLCODE_NOMORE {
 		cursor.eof = true
-		err = os.EOF
+		err = io.EOF
 		return
 	}
 	if err = fbErrorCheck(&isc_status); err != nil {
@@ -818,6 +819,7 @@ func (cursor *Cursor) Fetch(row interface{}) (err os.Error) {
 	}
 	return
 }
+
 /*
 static VALUE fb_cursor_fetch(struct FbCursor *fb_cursor)
 {

@@ -5,14 +5,16 @@ package fb
 #include <stdlib.h>
 */
 import "C"
-import "unsafe"
+import (
+	"errors"
+	"unsafe"
+)
 
 import (
-	"os"
-	"strings"
-	"strconv"
-	"fmt"
 	"bytes"
+	"fmt"
+	"strconv"
+	"strings"
 )
 
 type Error struct {
@@ -20,7 +22,7 @@ type Error struct {
 	Message string
 }
 
-func (this Error) String() string {
+func (this Error) Error() string {
 	return this.Message
 }
 
@@ -34,11 +36,11 @@ type Database struct {
 	PageSize       int
 }
 
-func MapFromConnectionString(parms string) (map[string]string, os.Error) {
+func MapFromConnectionString(parms string) (map[string]string, error) {
 	m := make(map[string]string)
-	kva := strings.Split(parms, ";", -1)
+	kva := strings.Split(parms, ";")
 	for _, kv := range kva {
-		pair := strings.Split(kv, "=", 2)
+		pair := strings.SplitN(kv, "=", 2)
 		if len(pair) != 2 {
 			continue
 		}
@@ -50,33 +52,33 @@ func MapFromConnectionString(parms string) (map[string]string, os.Error) {
 	return m, nil
 }
 
-func New(parms string) (db *Database, err os.Error) {
+func New(parms string) (db *Database, err error) {
 	p, err := MapFromConnectionString(parms)
 	database, ok := p["database"]
 	if !ok {
-		return nil, os.ErrorString("database parm required")
+		return nil, errors.New("database parm required")
 	}
 	username, ok := p["username"]
 	if !ok {
-		return nil, os.ErrorString("username parm required")
+		return nil, errors.New("username parm required")
 	}
 	password, ok := p["password"]
 	if !ok {
-		return nil, os.ErrorString("password parm required")
+		return nil, errors.New("password parm required")
 	}
 	charset, _ := p["charset"]
 	role, _ := p["role"]
 	lowercaseNames := false
 	sLowercaseNames, ok := p["lowercase_names"]
 	if ok {
-		lowercaseNames, _ = strconv.Atob(sLowercaseNames)
+		lowercaseNames, _ = strconv.ParseBool(sLowercaseNames)
 	}
 	pageSize := 1024
 	sPageSize, ok := p["page_size"]
 	if ok {
 		pageSize, err = strconv.Atoi(sPageSize)
 		if err != nil {
-			return nil, os.NewError("Invalid page_size: " + err.String())
+			return nil, errors.New("Invalid page_size: " + err.Error())
 		}
 	}
 	db = &Database{database, username, password, role, charset, lowercaseNames, pageSize}
@@ -104,7 +106,7 @@ func fbErrorMsg(isc_status *C.ISC_STATUS) string {
 	return buf.String()
 }
 
-func fbErrorCheck(isc_status *[20]C.ISC_STATUS) os.Error {
+func fbErrorCheck(isc_status *[20]C.ISC_STATUS) error {
 	if isc_status[0] == 1 && isc_status[1] != 0 {
 		var msg [1024]C.ISC_SCHAR
 		var code C.short = C.short(C.isc_sqlcode(&isc_status[0]))
@@ -122,7 +124,7 @@ func fbErrorCheck(isc_status *[20]C.ISC_STATUS) os.Error {
 	return nil
 }
 
-func fbErrorCheckWarn(isc_status *[20]C.ISC_STATUS) os.Error {
+func fbErrorCheckWarn(isc_status *[20]C.ISC_STATUS) error {
 	var code C.short = C.short(C.isc_sqlcode(&isc_status[0]))
 	if code != 0 {
 		var buf [1024]C.ISC_SCHAR
@@ -135,6 +137,7 @@ func fbErrorCheckWarn(isc_status *[20]C.ISC_STATUS) os.Error {
 	}
 	return nil
 }
+
 /*
 static void fb_error_check_warn(ISC_STATUS *isc_status)
 {
@@ -147,7 +150,7 @@ static void fb_error_check_warn(ISC_STATUS *isc_status)
 }
 */
 
-func (db *Database) Create() (*Connection, os.Error) {
+func (db *Database) Create() (*Connection, error) {
 	var isc_status [20]C.ISC_STATUS
 	var handle C.isc_db_handle = 0
 	var local_transact C.isc_tr_handle = 0
@@ -161,7 +164,7 @@ func (db *Database) Create() (*Connection, os.Error) {
 	return &Connection{database: db, db: handle}, nil
 }
 
-func Create(parms string) (conn *Connection, err os.Error) {
+func Create(parms string) (conn *Connection, err error) {
 	db, err := New(parms)
 	if err != nil {
 		return
@@ -197,7 +200,7 @@ func (db *Database) createDbp() string {
 	return buf.String()
 }
 
-func (db *Database) Connect() (*Connection, os.Error) {
+func (db *Database) Connect() (*Connection, error) {
 	var isc_status [20]C.ISC_STATUS
 	var handle C.isc_db_handle = 0
 
@@ -218,7 +221,7 @@ func (db *Database) Connect() (*Connection, os.Error) {
 	return &Connection{database: db, db: handle}, nil
 }
 
-func Connect(parms string) (conn *Connection, err os.Error) {
+func Connect(parms string) (conn *Connection, err error) {
 	db, err := New(parms)
 	if err != nil {
 		return
@@ -227,7 +230,7 @@ func Connect(parms string) (conn *Connection, err os.Error) {
 	return
 }
 
-func (db *Database) Drop() (err os.Error) {
+func (db *Database) Drop() (err error) {
 	conn, err := db.Connect()
 	if err != nil {
 		return
@@ -236,7 +239,7 @@ func (db *Database) Drop() (err os.Error) {
 	return
 }
 
-func Drop(parms string) (err os.Error) {
+func Drop(parms string) (err error) {
 	db, err := New(parms)
 	if err != nil {
 		return
