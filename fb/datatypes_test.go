@@ -1,9 +1,9 @@
 package fb
 
 import (
-	"testing"
 	"fmt"
 	"strings"
+	"testing"
 	"time"
 	// "bytes"
 	"os"
@@ -50,15 +50,15 @@ func genVc10000(i int) string {
 }
 
 func genDt(i int) time.Time {
-	return time.Time{Year: 2000, Month: i + 1, Day: i + 1}
+	return time.Date(2000, time.Month(i + 1), i + 1, 0, 0, 0, 0, time.Local)
 }
 
 func genTm(i int) time.Time {
-	return time.Time{Year: 1990, Month: 1, Day: 1, Hour: 12, Minute: i, Second: i}
+	return time.Date(1990, time.Month(1), 1, 12, i, i, 0, time.Local)
 }
 
 func genTs(i int) time.Time {
-	return time.Time{Year: 2006, Month: 1, Day: 1, Hour: i, Minute: i, Second: i}
+	return time.Date(2006, time.Month(1), 1, i, i, i, 0, time.Local)
 }
 
 func genN92(i int) float64 {
@@ -116,7 +116,7 @@ func TestInsertCorrectTypes(t *testing.T) {
 		sqlInsert := fmt.Sprintf("INSERT INTO TEST_%s (VAL) VALUES (?);", col)
 		sqlSelect := fmt.Sprintf("SELECT * FROM TEST_%s;", col)
 		var cursor *Cursor
-		var err os.Error
+		var err error
 
 		switch col {
 		case "I":

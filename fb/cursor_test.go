@@ -1,10 +1,11 @@
 package fb
 
 import (
-	"testing"
+	"io"
 	"os"
-	"strings"
 	"reflect"
+	"strings"
+	"testing"
 )
 
 func TestFetch(t *testing.T) {
@@ -180,7 +181,7 @@ func TestFetchAfterEnd(t *testing.T) {
 	if err = cursor.Fetch(&row); err != nil {
 		t.Fatalf("Error in fetch: %s", err)
 	}
-	if err = cursor.Fetch(&row); err != os.EOF {
+	if err = cursor.Fetch(&row); err != io.EOF {
 		t.Fatalf("Expecting os.EOF, got: %s", err)
 	}
 	err = cursor.Fetch(&row)
@@ -214,7 +215,7 @@ func TestFetchAfterEnd2(t *testing.T) {
 	if err = cursor.Fetch(&row); err != nil {
 		t.Fatalf("Error in fetch: %s", err)
 	}
-	if err = cursor.Fetch(&row); err != os.EOF {
+	if err = cursor.Fetch(&row); err != io.EOF {
 		t.Fatalf("Expecting os.EOF, got: %s", err)
 	}
 	err = cursor.Fetch(&row)

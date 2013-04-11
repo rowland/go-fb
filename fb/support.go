@@ -1,12 +1,12 @@
 package fb
 
 import (
-	"os"
-	"strconv"
+	"errors"
 	"fmt"
+	"strconv"
 )
 
-func float64FromIf(v interface{}) (f float64, err os.Error) {
+func float64FromIf(v interface{}) (f float64, err error) {
 	switch d := v.(type) {
 	case float64:
 		f = d
@@ -19,15 +19,15 @@ func float64FromIf(v interface{}) (f float64, err os.Error) {
 	case int:
 		f = float64(d)
 	case string:
-		f, err = strconv.Atof64(d)
+		f, err = strconv.ParseFloat(d, 64)
 	}
 	if err != nil {
-		return 0.0, os.NewError("numeric value expected")
+		return 0.0, errors.New("numeric value expected")
 	}
 	return
 }
 
-func int64FromIf(v interface{}) (i int64, err os.Error) {
+func int64FromIf(v interface{}) (i int64, err error) {
 	switch v := v.(type) {
 	case int64:
 		i = v
@@ -42,12 +42,12 @@ func int64FromIf(v interface{}) (i int64, err os.Error) {
 	case *int:
 		i = int64(*v)
 	case string:
-		i, err = strconv.Atoi64(v)
+		i, err = strconv.ParseInt(v, 10, 64)
 	case fmt.Stringer:
-		i, err = strconv.Atoi64(v.String())
+		i, err = strconv.ParseInt(v.String(), 10, 64)
 	}
 	if err != nil {
-		return 0, os.NewError("integer value expected")
+		return 0, errors.New("integer value expected")
 	}
 	return
 }

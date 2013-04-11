@@ -1,6 +1,8 @@
 package fb
 
 /*
+#cgo CFLAGS: -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE -I/Library/Frameworks/Firebird.framework/Headers
+#cgo LDFLAGS: -L. -arch x86_64 -framework Firebird
 #include "fb.h"
 #include <ibase.h>
 #include <stdlib.h>
@@ -14,9 +16,8 @@ ISC_STATUS isc_start_transaction2(ISC_STATUS* isc_status,
 import "C"
 
 import (
-	"os"
-	"unsafe"
 	"strings"
+	"unsafe"
 )
 
 type Connection struct {
@@ -30,14 +31,14 @@ type Connection struct {
 	rowsAffected int
 }
 
-func (conn *Connection) check() os.Error {
+func (conn *Connection) check() error {
 	if conn.db == 0 {
 		return &Error{0, "closed db connection"}
 	}
 	return nil
 }
 
-func (conn *Connection) disconnect() (err os.Error) {
+func (conn *Connection) disconnect() (err error) {
 	var isc_status [20]C.ISC_STATUS
 
 	if conn.transact != 0 {
@@ -61,7 +62,7 @@ func (conn *Connection) dropCursors() {
 	conn.cursors = nil
 }
 
-func (conn *Connection) Close() (err os.Error) {
+func (conn *Connection) Close() (err error) {
 	if conn.dropped {
 		return
 	}
@@ -75,7 +76,7 @@ func (conn *Connection) Close() (err os.Error) {
 	return nil
 }
 
-func (conn *Connection) Drop() (err os.Error) {
+func (conn *Connection) Drop() (err error) {
 	conn.dropped = true
 	if err = conn.disconnect(); err != nil {
 		return
@@ -88,7 +89,7 @@ func (conn *Connection) TransactionStarted() bool {
 	return (conn.transact != 0)
 }
 
-func (conn *Connection) Execute(sql string, args ...interface{}) (cursor *Cursor, err os.Error) {
+func (conn *Connection) Execute(sql string, args ...interface{}) (cursor *Cursor, err error) {
 	cursor, err = newCursor(conn)
 	if err != nil {
 		return
@@ -100,9 +101,9 @@ func (conn *Connection) Execute(sql string, args ...interface{}) (cursor *Cursor
 	return
 }
 
-func (conn *Connection) ExecuteScript(sql string) (err os.Error) {
+func (conn *Connection) ExecuteScript(sql string) (err error) {
 	// TODO: handle "set term"
-	script := strings.Split(sql, ";", -1)
+	script := strings.Split(sql, ";")
 	for _, stmt := range script {
 		_, err = conn.Execute(stmt)
 		if err != nil {
@@ -119,7 +120,7 @@ func (conn *Connection) closeCursors() {
 	conn.cursors = nil
 }
 
-func (conn *Connection) Commit() (err os.Error) {
+func (conn *Connection) Commit() (err error) {
 	var isc_status [20]C.ISC_STATUS
 
 	if conn.transact != 0 {
@@ -132,7 +133,7 @@ func (conn *Connection) Commit() (err os.Error) {
 	return nil
 }
 
-func (conn *Connection) transactionStart(options *string) os.Error {
+func (conn *Connection) transactionStart(options *string) error {
 	var isc_status [20]C.ISC_STATUS
 
 	if conn.TransactionStarted() {

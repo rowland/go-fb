@@ -1,5 +1,6 @@
 #include <ibase.h>
 #include <stdlib.h>
+#include <string.h>
 #include "_cgo_export.h"
 #include "fb.h"
 
@@ -97,7 +98,7 @@ char* trans_parseopts(char *opt, long *tpb_len)
 	char sp_prm;
 	char rw_prm;
 	int cont_f;
-	const char *desc = 0;
+	char *desc = 0;
 
 	 // Initialize 
 	s = opt;

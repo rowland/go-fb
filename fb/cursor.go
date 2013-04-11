@@ -8,11 +8,12 @@ package fb
 import "C"
 
 import (
-	"os"
-	"unsafe"
-	"strings"
+	"errors"
 	"fmt"
+	"io"
 	"regexp"
+	"strings"
+	"unsafe"
 )
 
 type Cursor struct {
@@ -33,7 +34,7 @@ type Cursor struct {
 
 const sqlda_colsinit = 50
 
-func newCursor(conn *Connection) (cursor *Cursor, err os.Error) {
+func newCursor(conn *Connection) (cursor *Cursor, err error) {
 	var isc_status [20]C.ISC_STATUS
 
 	if err = conn.check(); err != nil {
@@ -49,7 +50,7 @@ func newCursor(conn *Connection) (cursor *Cursor, err os.Error) {
 	return cursor, nil
 }
 
-func (cursor *Cursor) execute(sql string, args ...interface{}) (rowsAffected int, err os.Error) {
+func (cursor *Cursor) execute(sql string, args ...interface{}) (rowsAffected int, err error) {
 	var isc_status [20]C.ISC_STATUS
 
 	if cursor.open {
@@ -76,7 +77,7 @@ func (cursor *Cursor) execute(sql string, args ...interface{}) (rowsAffected int
 
 const nullTerminated = 0
 
-func (cursor *Cursor) execute2(sql string, args ...interface{}) (rowsAffected int, err os.Error) {
+func (cursor *Cursor) execute2(sql string, args ...interface{}) (rowsAffected int, err error) {
 	var isc_status [20]C.ISC_STATUS
 
 	// prepare query
@@ -201,9 +202,9 @@ func (cursor *Cursor) execute2(sql string, args ...interface{}) (rowsAffected in
 	return
 }
 
-func (cursor *Cursor) setInputParams(args []interface{}) (err os.Error) {
+func (cursor *Cursor) setInputParams(args []interface{}) (err error) {
 	if int(cursor.i_sqlda.sqld) != len(args) {
-		return os.NewError(fmt.Sprintf("statement requires %d items; %d given", cursor.i_sqlda.sqld, len(args)))
+		return errors.New(fmt.Sprintf("statement requires %d items; %d given", cursor.i_sqlda.sqld, len(args)))
 	}
 	offset := C.ISC_SHORT(0)
 	for count, arg := range args {
@@ -238,7 +239,7 @@ func (cursor *Cursor) setInputParams(args []interface{}) (err os.Error) {
 					lvalue = C.ISC_LONG(ivalue)
 				}
 				if lvalue < -2147483647 || lvalue > 2147483647 {
-					return os.NewError("integer overflow")
+					return errors.New("integer overflow")
 				}
 				*(*C.ISC_LONG)(unsafe.Pointer(ivar.sqldata)) = lvalue
 				offset += alignment
@@ -246,13 +247,13 @@ func (cursor *Cursor) setInputParams(args []interface{}) (err os.Error) {
 				panic("Shouldn't reach here! (dtp not implemented)")
 			}
 
-			if ivar.sqltype & 1 != 0 {
+			if (ivar.sqltype & 1) != 0 {
 				offset = fbAlign(offset, C.SHORT_SIZE)
 				ivar.sqlind = (*C.ISC_SHORT)(unsafe.Pointer(uintptr(unsafe.Pointer(cursor.i_buffer)) + uintptr(offset)))
 				*ivar.sqlind = 0
 				offset += C.SHORT_SIZE
 			}
-		} else if ivar.sqltype&1 != 0 {
+		} else if (ivar.sqltype & 1) != 0 {
 			ivar.sqldata = (*C.ISC_SCHAR)(nil)
 			offset = fbAlign(offset, C.SHORT_SIZE)
 			ivar.sqlind = (*C.ISC_SHORT)(unsafe.Pointer((uintptr(unsafe.Pointer(cursor.i_buffer)) + uintptr(offset))))
@@ -260,11 +261,12 @@ func (cursor *Cursor) setInputParams(args []interface{}) (err os.Error) {
 
 			offset += C.SHORT_SIZE
 		} else {
-			return os.NewError("specified column is not permitted to be null")
+			return errors.New("specified column is not permitted to be null")
 		}
 	}
 	return nil
 }
+
 /*
 static void fb_cursor_set_inputparams(struct FbCursor *fb_cursor, long argc, VALUE *argv)
 {
@@ -507,7 +509,7 @@ static void fb_cursor_set_inputparams(struct FbCursor *fb_cursor, long argc, VAL
 }
 */
 
-func (cursor *Cursor) executeWithParams(args []interface{}) (err os.Error) {
+func (cursor *Cursor) executeWithParams(args []interface{}) (err error) {
 	var isc_status [20]C.ISC_STATUS
 
 	if err = cursor.setInputParams(args); err != nil {
@@ -517,7 +519,7 @@ func (cursor *Cursor) executeWithParams(args []interface{}) (err os.Error) {
 	return fbErrorCheck(&isc_status)
 }
 
-func (cursor *Cursor) fbCursorDrop() (err os.Error) {
+func (cursor *Cursor) fbCursorDrop() (err error) {
 	var isc_status [20]C.ISC_STATUS
 
 	if cursor.open {
@@ -530,7 +532,7 @@ func (cursor *Cursor) fbCursorDrop() (err os.Error) {
 	return fbErrorCheck(&isc_status)
 }
 
-func (cursor *Cursor) drop() (err os.Error) {
+func (cursor *Cursor) drop() (err error) {
 	err = cursor.fbCursorDrop()
 	cursor.Fields = nil
 	cursor.FieldsMap = nil
@@ -706,7 +708,7 @@ func fieldsMapFromSlice(fields []*Field) map[string]*Field {
 	return m
 }
 
-func (cursor *Cursor) check() os.Error {
+func (cursor *Cursor) check() error {
 	if cursor.stmt == 0 {
 		return &Error{Message: "dropped cursor"}
 	}
@@ -716,7 +718,7 @@ func (cursor *Cursor) check() os.Error {
 	return nil
 }
 
-func (cursor *Cursor) Close() (err os.Error) {
+func (cursor *Cursor) Close() (err error) {
 	var isc_status [20]C.ISC_STATUS
 
 	if err = cursor.check(); err != nil {
@@ -744,7 +746,7 @@ func fbAlign(n C.ISC_SHORT, b C.ISC_SHORT) C.ISC_SHORT {
 	return (n + b - 1) & ^(b - 1)
 }
 
-func (cursor *Cursor) prep() (err os.Error) {
+func (cursor *Cursor) prep() (err error) {
 	var isc_status [20]C.ISC_STATUS
 
 	if err = cursor.check(); err != nil {
@@ -779,7 +781,7 @@ func (cursor *Cursor) prep() (err os.Error) {
 	return
 }
 
-func (cursor *Cursor) Fetch(row interface{}) (err os.Error) {
+func (cursor *Cursor) Fetch(row interface{}) (err error) {
 	const SQLCODE_NOMORE = 100
 	var isc_status [20]C.ISC_STATUS
 
@@ -796,7 +798,7 @@ func (cursor *Cursor) Fetch(row interface{}) (err os.Error) {
 	// fetch one row 
 	if C.isc_dsql_fetch(&isc_status[0], &cursor.stmt, C.SQLDA_VERSION1, cursor.o_sqlda) == SQLCODE_NOMORE {
 		cursor.eof = true
-		err = os.EOF
+		err = io.EOF
 		return
 	}
 	if err = fbErrorCheck(&isc_status); err != nil {
@@ -813,7 +815,7 @@ func (cursor *Cursor) Fetch(row interface{}) (err os.Error) {
 		dtp := sqlvar.sqltype & ^1
 
 		// check if column is null
-		if (sqlvar.sqltype&1 != 0) && (*sqlvar.sqlind < 0) {
+		if ((sqlvar.sqltype & 1) != 0) && (*sqlvar.sqlind < 0) {
 			val = nil
 		} else {
 			// set column value to result tuple
@@ -852,10 +854,11 @@ func (cursor *Cursor) Fetch(row interface{}) (err os.Error) {
 	case *[]interface{}:
 		*row = ary
 	default:
-		err = os.NewError(fmt.Sprintf("Unsupported row type: %T", row))
+		err = errors.New(fmt.Sprintf("Unsupported row type: %T", row))
 	}
 	return
 }
+
 /*
 static VALUE fb_cursor_fetch(struct FbCursor *fb_cursor)
 {
