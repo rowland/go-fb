@@ -214,6 +214,38 @@ func (cursor *Cursor) setInputParams(args []interface{}) (err error) {
 			alignment := ivar.sqllen
 
 			switch dtp {
+
+			case C.SQL_SHORT:
+				var lvalue C.ISC_LONG
+				offset = fbAlign(offset, alignment)
+				ivar.sqldata = (*C.ISC_SCHAR)(unsafe.Pointer(uintptr(unsafe.Pointer(cursor.i_buffer)) + uintptr(offset)))
+				if ivar.sqlscale < 0 {
+					ratio := 1
+					for scnt := C.ISC_SHORT(0); scnt > ivar.sqlscale; scnt-- {
+						ratio *= 10
+					}
+					var dvalue float64
+					dvalue, err = float64FromIf(arg)
+					if err != nil {
+						return
+					}
+					dvalue *= float64(ratio)
+					lvalue = C.ISC_LONG(dvalue + 0.5)
+				} else {
+					var ivalue int64
+					ivalue, err = int64FromIf(arg)
+					if err != nil {
+						return
+					}
+					lvalue = C.ISC_LONG(ivalue)
+				}
+				if lvalue < -32768 || lvalue > 32767 {
+					return errors.New("short integer overflow")
+				}
+				*(*C.ISC_LONG)(unsafe.Pointer(ivar.sqldata)) = lvalue
+				offset += alignment
+				break
+
 			case C.SQL_LONG:
 				var lvalue C.ISC_LONG
 				offset = fbAlign(offset, alignment)

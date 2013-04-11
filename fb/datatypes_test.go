@@ -139,12 +139,57 @@ func TestInsertCorrectTypes(t *testing.T) {
 				t.Errorf("Unexpected error in select: %s", err)
 				break
 			}
+
 			if err = cursor.Fetch(&vals); err != nil {
 				t.Errorf("Error in fetch: %s", err)
 				break
 			}
 			if vals[0].(int32) != 500000 {
 				t.Errorf("Expected %d, got %d", 500000, vals[0])
+			}
+
+			if err = cursor.Fetch(&vals); err != nil {
+				t.Errorf("Error in fetch: %s", err)
+				break
+			}
+			if vals[0].(int32) != 500000 {
+				t.Errorf("Expected %d, got %d", 500000, vals[0])
+			}
+		case "SI":
+			fmt.Println(sqlSchema)
+			if _, err = conn.Execute(sqlSchema); err != nil {
+				t.Fatalf("Error executing schema: %s", err)
+			}
+			conn.Commit()
+
+			fmt.Println(sqlInsert)
+			if _, err = conn.Execute(sqlInsert, 32123); err != nil {
+				t.Fatalf("Error executing insert (1): %s", err)
+			}
+			fmt.Println(sqlInsert)
+			if _, err = conn.Execute(sqlInsert, "32123"); err != nil {
+				t.Fatalf("Error executing insert (2): %s", err)
+			}
+			var vals []interface{}
+			if cursor, err = conn.Execute(sqlSelect); err != nil {
+				t.Errorf("Unexpected error in select: %s", err)
+				break
+			}
+
+			if err = cursor.Fetch(&vals); err != nil {
+				t.Errorf("Error in fetch: %s", err)
+				break
+			}
+			if vals[0].(int16) != 32123 {
+				t.Errorf("Expected %d, got %d", 32123, vals[0])
+			}
+
+			if err = cursor.Fetch(&vals); err != nil {
+				t.Errorf("Error in fetch: %s", err)
+				break
+			}
+			if vals[0].(int16) != 32123 {
+				t.Errorf("Expected %d, got %d", 32123, vals[0])
 			}
 		}
 	}
