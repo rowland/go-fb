@@ -51,3 +51,29 @@ func int64FromIf(v interface{}) (i int64, err error) {
 	}
 	return
 }
+
+func stringFromIf(v interface{}) (s string, err error) {
+	switch v := v.(type) {
+	case string:
+		s = v
+	case *string:
+		s = *v
+	case int64:
+		s = strconv.FormatInt(v, 10)
+	case *int64:
+		s = strconv.FormatInt(*v, 10)
+	case int32:
+		s = strconv.FormatInt(int64(v), 10)
+	case *int32:
+		s = strconv.FormatInt(int64(*v), 10)
+	case int:
+		s = strconv.FormatInt(int64(v), 10)
+	case *int:
+		s = strconv.FormatInt(int64(*v), 10)
+	case fmt.Stringer:
+		s = v.String()
+	default:
+		return "", errors.New("string value expected")
+	}
+	return
+}

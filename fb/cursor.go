@@ -3,6 +3,7 @@ package fb
 /*
 #include <ibase.h>
 #include <stdlib.h>
+#include <string.h>
 #include "fb.h"
 */
 import "C"
@@ -215,6 +216,23 @@ func (cursor *Cursor) setInputParams(args []interface{}) (err error) {
 
 			switch dtp {
 
+			case C.SQL_TEXT:
+				alignment = 1
+				offset = fbAlign(offset, alignment)
+				ivar.sqldata = (*C.ISC_SCHAR)(unsafe.Pointer(uintptr(unsafe.Pointer(cursor.i_buffer)) + uintptr(offset)))
+				var svalue string
+				svalue, err = stringFromIf(arg)
+				if err != nil {
+					return
+				}
+				if (len(svalue) > int(ivar.sqllen)) {
+					return fmt.Errorf("CHAR overflow: %d bytes exceeds %d byte(s) allowed.", len(svalue), ivar.sqllen)
+				}
+				csvalue := C.CString(svalue)
+				C.memcpy(unsafe.Pointer(ivar.sqldata), unsafe.Pointer(csvalue), C.size_t(len(svalue)))
+				ivar.sqllen = C.ISC_SHORT(len(svalue))
+				offset += ivar.sqllen + 1
+
 			case C.SQL_SHORT:
 				var lvalue C.ISC_LONG
 				offset = fbAlign(offset, alignment)
@@ -244,7 +262,6 @@ func (cursor *Cursor) setInputParams(args []interface{}) (err error) {
 				}
 				*(*C.ISC_LONG)(unsafe.Pointer(ivar.sqldata)) = lvalue
 				offset += alignment
-				break
 
 			case C.SQL_LONG:
 				var lvalue C.ISC_LONG
