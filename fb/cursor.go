@@ -221,17 +221,35 @@ func (cursor *Cursor) setInputParams(args []interface{}) (err error) {
 				offset = fbAlign(offset, alignment)
 				ivar.sqldata = (*C.ISC_SCHAR)(unsafe.Pointer(uintptr(unsafe.Pointer(cursor.i_buffer)) + uintptr(offset)))
 				var svalue string
-				svalue, err = stringFromIf(arg)
-				if err != nil {
+				if svalue, err = stringFromIf(arg); err != nil {
 					return
 				}
 				if (len(svalue) > int(ivar.sqllen)) {
 					return fmt.Errorf("CHAR overflow: %d bytes exceeds %d byte(s) allowed.", len(svalue), ivar.sqllen)
 				}
 				csvalue := C.CString(svalue)
+				defer C.free(unsafe.Pointer(csvalue))
 				C.memcpy(unsafe.Pointer(ivar.sqldata), unsafe.Pointer(csvalue), C.size_t(len(svalue)))
 				ivar.sqllen = C.ISC_SHORT(len(svalue))
 				offset += ivar.sqllen + 1
+
+			case C.SQL_VARYING:
+				alignment = C.SHORT_SIZE
+				offset = fbAlign(offset, alignment)
+				ivar.sqldata = (*C.ISC_SCHAR)(unsafe.Pointer(uintptr(unsafe.Pointer(cursor.i_buffer)) + uintptr(offset)))
+				vary := (*C.VARY)(unsafe.Pointer(ivar.sqldata))
+				var svalue string
+				if svalue, err = stringFromIf(arg); err != nil {
+					return
+				}
+				if (len(svalue) > int(ivar.sqllen)) {
+					return fmt.Errorf("VARCHAR overflow: %d bytes exceeds %d byte(s) allowed.", len(svalue), ivar.sqllen)
+				}
+				csvalue := C.CString(svalue)
+				defer C.free(unsafe.Pointer(csvalue))
+				C.memcpy(unsafe.Pointer(&vary.vary_string), unsafe.Pointer(csvalue), C.size_t(len(svalue)))
+				vary.vary_length = C.short(len(svalue))
+				offset += C.ISC_SHORT(vary.vary_length) + C.SHORT_SIZE
 
 			case C.SQL_SHORT:
 				var lvalue C.ISC_LONG
@@ -871,6 +889,9 @@ func (cursor *Cursor) Fetch(row interface{}) (err error) {
 			switch dtp {
 			case C.SQL_TEXT:
 				val = C.GoStringN((*C.char)(unsafe.Pointer(sqlvar.sqldata)), C.int(sqlvar.sqllen))
+			case C.SQL_VARYING:
+				vary := (*C.VARY)(unsafe.Pointer(sqlvar.sqldata))
+				val = C.GoStringN((*C.char)(unsafe.Pointer(&vary.vary_string)), C.int(vary.vary_length))
 			case C.SQL_SHORT:
 				sval := *(*C.short)(unsafe.Pointer(sqlvar.sqldata))
 				if sqlvar.sqlscale < 0 {

@@ -191,7 +191,7 @@ func TestInsertCorrectTypes(t *testing.T) {
 			if vals[0].(int16) != 32123 {
 				t.Errorf("Expected %d, got %d", 32123, vals[0])
 			}
-		case "C":
+		case "C", "VC":
 			fmt.Println(sqlSchema)
 			if _, err = conn.Execute(sqlSchema); err != nil {
 				t.Fatalf("Error executing schema: %s", err)
@@ -227,7 +227,7 @@ func TestInsertCorrectTypes(t *testing.T) {
 			if vals[0].(string) != "5" {
 				t.Errorf("Expected %d, got %d", "5", vals[0])
 			}
-		case "C10":
+		case "C10", "VC10":
 			fmt.Println(sqlSchema)
 			if _, err = conn.Execute(sqlSchema); err != nil {
 				t.Fatalf("Error executing schema: %s", err)
