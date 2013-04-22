@@ -1,10 +1,10 @@
 package fb
 
 import (
-	"testing"
-	"os"
 	"bufio"
 	"fmt"
+	"os"
+	"testing"
 )
 
 const (

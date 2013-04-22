@@ -224,7 +224,7 @@ func (cursor *Cursor) setInputParams(args []interface{}) (err error) {
 				if svalue, err = stringFromIf(arg); err != nil {
 					return
 				}
-				if (len(svalue) > int(ivar.sqllen)) {
+				if len(svalue) > int(ivar.sqllen) {
 					return fmt.Errorf("CHAR overflow: %d bytes exceeds %d byte(s) allowed.", len(svalue), ivar.sqllen)
 				}
 				csvalue := C.CString(svalue)
@@ -242,7 +242,7 @@ func (cursor *Cursor) setInputParams(args []interface{}) (err error) {
 				if svalue, err = stringFromIf(arg); err != nil {
 					return
 				}
-				if (len(svalue) > int(ivar.sqllen)) {
+				if len(svalue) > int(ivar.sqllen) {
 					return fmt.Errorf("VARCHAR overflow: %d bytes exceeds %d byte(s) allowed.", len(svalue), ivar.sqllen)
 				}
 				csvalue := C.CString(svalue)

@@ -1,8 +1,8 @@
 package fb
 
 import (
-	"testing"
 	"os"
+	"testing"
 )
 
 func TestExecute(t *testing.T) {
