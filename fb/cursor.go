@@ -12,6 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"regexp"
 	"strings"
 	"unsafe"
@@ -310,6 +311,28 @@ func (cursor *Cursor) setInputParams(args []interface{}) (err error) {
 				}
 				*(*C.ISC_LONG)(unsafe.Pointer(ivar.sqldata)) = lvalue
 				offset += alignment
+
+			case C.SQL_FLOAT:
+				offset = fbAlign(offset, alignment)
+				ivar.sqldata = (*C.ISC_SCHAR)(unsafe.Pointer(uintptr(unsafe.Pointer(cursor.i_buffer)) + uintptr(offset)))
+				var dvalue float64
+				dvalue, err = float64FromIf(arg)
+				if err != nil {
+					return
+				}
+				var dcheck float64
+				if dvalue >= 0.0 {
+					dcheck = dvalue
+				} else {
+					dcheck = dvalue * -1
+				}
+				if (dcheck != 0.0 && (dcheck < math.SmallestNonzeroFloat32 || dcheck > math.MaxFloat32)) {
+					return errors.New("float overflow")
+				}
+
+				*(*float32)(unsafe.Pointer(ivar.sqldata)) = float32(dvalue)
+				offset += alignment
+
 			default:
 				panic("Shouldn't reach here! (dtp not implemented)")
 			}
@@ -916,6 +939,9 @@ func (cursor *Cursor) Fetch(row interface{}) (err error) {
 				} else {
 					val = int32(lval)
 				}
+			case C.SQL_FLOAT:
+				fval := *(*float32)(unsafe.Pointer(sqlvar.sqldata))
+				val = fval
 			}
 		}
 		ary[count] = val
