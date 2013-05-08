@@ -333,6 +333,18 @@ func (cursor *Cursor) setInputParams(args []interface{}) (err error) {
 				*(*float32)(unsafe.Pointer(ivar.sqldata)) = float32(dvalue)
 				offset += alignment
 
+			case C.SQL_DOUBLE:
+				offset = fbAlign(offset, alignment)
+				ivar.sqldata = (*C.ISC_SCHAR)(unsafe.Pointer(uintptr(unsafe.Pointer(cursor.i_buffer)) + uintptr(offset)))
+				var dvalue float64
+				dvalue, err = float64FromIf(arg)
+				if err != nil {
+					return
+				}
+
+				*(*float64)(unsafe.Pointer(ivar.sqldata)) = dvalue
+				offset += alignment
+
 			default:
 				panic("Shouldn't reach here! (dtp not implemented)")
 			}
@@ -942,6 +954,9 @@ func (cursor *Cursor) Fetch(row interface{}) (err error) {
 			case C.SQL_FLOAT:
 				fval := *(*float32)(unsafe.Pointer(sqlvar.sqldata))
 				val = fval
+			case C.SQL_DOUBLE:
+				dval := *(*float64)(unsafe.Pointer(sqlvar.sqldata))
+				val = dval
 			}
 		}
 		ary[count] = val
