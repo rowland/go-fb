@@ -2,6 +2,7 @@ package fb
 
 import (
 	"fmt"
+	"math/big"
 	"strings"
 	"testing"
 	"time"
@@ -336,6 +337,45 @@ func TestInsertCorrectTypes(t *testing.T) {
 			}
 			if vals[0].(string) != "1234567890" {
 				t.Errorf("Expected %d, got %d", "1234567890", vals[0])
+			}
+		case "VC10000":
+			fmt.Println(sqlSchema)
+			if _, err = conn.Execute(sqlSchema); err != nil {
+				t.Fatalf("Error executing schema: %s", err)
+			}
+			conn.Commit()
+
+			bs := strings.Repeat("1", 100)
+			bi, _ := new(big.Int).SetString(bs, 10)
+
+			fmt.Println(sqlInsert)
+			if _, err = conn.Execute(sqlInsert, bs); err != nil {
+				t.Fatalf("Error executing insert (1): %s", err)
+			}
+			fmt.Println(sqlInsert)
+			if _, err = conn.Execute(sqlInsert, bi); err != nil {
+				t.Fatalf("Error executing insert (2): %s", err)
+			}
+			var vals []interface{}
+			if cursor, err = conn.Execute(sqlSelect); err != nil {
+				t.Errorf("Unexpected error in select: %s", err)
+				break
+			}
+
+			if err = cursor.Fetch(&vals); err != nil {
+				t.Errorf("Error in fetch: %s", err)
+				break
+			}
+			if vals[0].(string) != bs {
+				t.Errorf("Expected %s, got %s", bs, vals[0])
+			}
+
+			if err = cursor.Fetch(&vals); err != nil {
+				t.Errorf("Error in fetch: %s", err)
+				break
+			}
+			if vals[0].(string) != bs {
+				t.Errorf("Expected %d, got %d", bs, vals[0])
 			}
 		}
 	}
