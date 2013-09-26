@@ -15,6 +15,7 @@ import (
 	"math"
 	"regexp"
 	"strings"
+	"time"
 	"unsafe"
 )
 
@@ -122,13 +123,13 @@ func (cursor *Cursor) execute2(sql string, args ...interface{}) (rowsAffected in
 	if cursor.i_sqlda.sqln < in_params {
 		C.free(unsafe.Pointer(cursor.i_sqlda))
 		cursor.i_sqlda = C.sqlda_alloc(C.long(in_params))
-		// describe again 
+		// describe again
 		C.isc_dsql_describe_bind(&isc_status[0], &cursor.stmt, C.SQLDA_VERSION1, cursor.i_sqlda)
 		if err = fbErrorCheck(&isc_status); err != nil {
 			return
 		}
 	}
-	// get size of parameters buffer and reallocate it 
+	// get size of parameters buffer and reallocate it
 	if in_params > 0 {
 		length := C.calculate_buffsize(cursor.i_sqlda)
 		if length > cursor.i_buffer_size {
@@ -137,13 +138,13 @@ func (cursor *Cursor) execute2(sql string, args ...interface{}) (rowsAffected in
 		}
 	}
 	if cursor.o_sqlda.sqld != 0 {
-		// open cursor if statement is query 
-		// get number of columns and reallocate SQLDA 
+		// open cursor if statement is query
+		// get number of columns and reallocate SQLDA
 		cols := cursor.o_sqlda.sqld
 		if cursor.o_sqlda.sqln < cols {
 			C.free(unsafe.Pointer(cursor.o_sqlda))
 			cursor.o_sqlda = C.sqlda_alloc(C.long(cols))
-			// describe again 
+			// describe again
 			C.isc_dsql_describe(&isc_status[0], &cursor.stmt, C.SQLDA_VERSION1, cursor.o_sqlda)
 			if err = fbErrorCheck(&isc_status); err != nil {
 				return
@@ -160,14 +161,14 @@ func (cursor *Cursor) execute2(sql string, args ...interface{}) (rowsAffected in
 			i_sqlda = (*C.XSQLDA)(nil)
 		}
 
-		// open cursor 
+		// open cursor
 		C.isc_dsql_execute2(&isc_status[0], &cursor.connection.transact, &cursor.stmt, C.SQLDA_VERSION1, i_sqlda, (*C.XSQLDA)(nil))
 		if err = fbErrorCheck(&isc_status); err != nil {
 			return
 		}
 		cursor.open = true
 
-		// get size of results buffer and reallocate it 
+		// get size of results buffer and reallocate it
 		length := C.calculate_buffsize(cursor.o_sqlda)
 		if length > cursor.o_buffer_size {
 			cursor.o_buffer = (*C.char)(C.realloc(unsafe.Pointer(cursor.o_buffer), C.size_t(length)))
@@ -326,7 +327,7 @@ func (cursor *Cursor) setInputParams(args []interface{}) (err error) {
 				} else {
 					dcheck = dvalue * -1
 				}
-				if (dcheck != 0.0 && (dcheck < math.SmallestNonzeroFloat32 || dcheck > math.MaxFloat32)) {
+				if dcheck != 0.0 && (dcheck < math.SmallestNonzeroFloat32 || dcheck > math.MaxFloat32) {
 					return errors.New("float overflow")
 				}
 
@@ -344,6 +345,19 @@ func (cursor *Cursor) setInputParams(args []interface{}) (err error) {
 
 				*(*float64)(unsafe.Pointer(ivar.sqldata)) = dvalue
 				offset += alignment
+
+			case C.SQL_TIMESTAMP:
+				offset = fbAlign(offset, alignment)
+				ivar.sqldata = (*C.ISC_SCHAR)(unsafe.Pointer(uintptr(unsafe.Pointer(cursor.i_buffer)) + uintptr(offset)))
+				var tvalue time.Time
+				tvalue, err = timeFromIf(arg, cursor.connection.Location)
+				if err != nil {
+					return
+				}
+				isc_ts := timestampFromTime(tvalue, cursor.connection.Location)
+				*(*C.ISC_TIMESTAMP)(unsafe.Pointer(ivar.sqldata)) = isc_ts
+				offset += alignment
+				break
 
 			default:
 				panic("Shouldn't reach here! (dtp not implemented)")
@@ -390,27 +404,27 @@ static void fb_cursor_set_inputparams(struct FbCursor *fb_cursor, long argc, VAL
 
 	isc_blob_handle blob_handle;
 	ISC_QUAD blob_id;
-	 // static char blob_items[] = { isc_info_blob_max_segment }; 
-	 // char blob_info[16]; 
+	 // static char blob_items[] = { isc_info_blob_max_segment };
+	 // char blob_info[16];
 	char *p;
 	long length;
-	 // struct time_object *tobj; 
+	 // struct time_object *tobj;
 	struct tm tms;
 
 	Data_Get_Struct(fb_cursor->connection, struct FbConnection, fb_connection);
 
-	 // Check the number of parameters 
+	 // Check the number of parameters
 	if (fb_cursor->i_sqlda->sqld != argc) {
 		rb_raise(rb_eFbError, "statement requires %d items; %ld given", fb_cursor->i_sqlda->sqld, argc);
 	}
 
-	 // Get the parameters 
+	 // Get the parameters
 	for (count = 0,offset = 0; count < argc; count++) {
 		obj = argv[count];
 
 		type = TYPE(obj);
 
-		 // Convert the data type for InterBase 
+		 // Convert the data type for InterBase
 		var = &fb_cursor->i_sqlda->sqlvar[count];
 		if (!NIL_P(obj)) {
 			dtp = var->sqltype & ~1;	// Erase null flag
@@ -897,7 +911,7 @@ func (cursor *Cursor) Fetch(row interface{}) (err error) {
 		err = &Error{Message: "Cursor is past end of data."}
 		return
 	}
-	// fetch one row 
+	// fetch one row
 	if C.isc_dsql_fetch(&isc_status[0], &cursor.stmt, C.SQLDA_VERSION1, cursor.o_sqlda) == SQLCODE_NOMORE {
 		cursor.eof = true
 		err = io.EOF
@@ -957,6 +971,11 @@ func (cursor *Cursor) Fetch(row interface{}) (err error) {
 			case C.SQL_DOUBLE:
 				dval := *(*float64)(unsafe.Pointer(sqlvar.sqldata))
 				val = dval
+			case C.SQL_TIMESTAMP:
+				isc_ts := *(*C.ISC_TIMESTAMP)(unsafe.Pointer(sqlvar.sqldata))
+				// fmt.Printf("< date: %v, time: %v\n", isc_ts.timestamp_date, isc_ts.timestamp_time)
+				val = timeFromTimestamp(isc_ts, cursor.connection.Location)
+				break
 			}
 		}
 		ary[count] = val
@@ -1007,28 +1026,28 @@ static VALUE fb_cursor_fetch(struct FbCursor *fb_cursor)
 	if (fb_cursor->eof) {
 		rb_raise(rb_eFbError, "Cursor is past end of data.");
 	}
-	 // Fetch one row 
+	 // Fetch one row
 	if (isc_dsql_fetch(fb_connection->isc_status, &fb_cursor->stmt, 1, fb_cursor->o_sqlda) == SQLCODE_NOMORE) {
 		fb_cursor->eof = Qtrue;
 		return Qnil;
 	}
 	fb_error_check(fb_connection->isc_status);
 
-	 // Create the result tuple object 
+	 // Create the result tuple object
 	cols = fb_cursor->o_sqlda->sqld;
 	ary = rb_ary_new2(cols);
 
-	 // Create the result objects for each columns 
+	 // Create the result objects for each columns
 	for (count = 0; count < cols; count++) {
 		var = &fb_cursor->o_sqlda->sqlvar[count];
 		dtp = var->sqltype & ~1;
 
-		 // Check if column is null 
+		 // Check if column is null
 
 		if ((var->sqltype & 1) && (*var->sqlind < 0)) {
 			val = Qnil;
 		} else {
-			 // Set the column value to the result tuple 
+			 // Set the column value to the result tuple
 
 			switch (dtp) {
 				case SQL_TEXT:
@@ -1150,3 +1169,40 @@ static VALUE fb_cursor_fetch(struct FbCursor *fb_cursor)
 	return ary;
 }
 */
+
+const (
+	secsPerDay                           = 24 * 60 * 60
+	daysFromModifiedJulianDayToUnixEpoch = 40587 // 17 Nov 1858 to 1 Jan 1970
+	secsFromModifiedJulianDayToUnixEpoch = daysFromModifiedJulianDayToUnixEpoch * secsPerDay
+)
+
+func timeFromTimestamp(ts C.ISC_TIMESTAMP, loc *time.Location) (t time.Time) {
+	unixDaySecs := (int64(ts.timestamp_date) * secsPerDay) - secsFromModifiedJulianDayToUnixEpoch
+	unixTimeSecs := int64(ts.timestamp_time) / 10000
+	unixFracSecs := int64(ts.timestamp_time) % 10000
+	ns := unixFracSecs * 100000
+	unixTime := unixDaySecs + unixTimeSecs
+	// fmt.Printf("unixTime: %v.%v\n", unixTime, ns)
+	t = time.Unix(unixTime, ns).In(time.UTC)
+	if loc != time.UTC {
+		y, m, d := t.Date()
+		h, n, s := t.Clock()
+		// fmt.Printf("timeFromTimestamp: %v, %v, %v, %v, %v, %v (%v)\n", y, m, d, h, n, s, loc)
+		t = time.Date(y, m, d, h, n, s, t.Nanosecond(), loc)
+	}
+	return
+}
+
+func timestampFromTime(t time.Time, loc *time.Location) (ts C.ISC_TIMESTAMP) {
+	if loc != time.UTC {
+		y, m, d := t.Date()
+		h, n, s := t.Clock()
+		t = time.Date(y, m, d, h, n, s, t.Nanosecond(), time.UTC)
+	}
+	unix_days := t.Unix() / secsPerDay
+	unix_secs := t.Unix() % secsPerDay
+	// fmt.Printf("unix time: %v, unix_days: %v, unix_secs: %v\n", t.Unix(), unix_days, unix_secs)
+	ts.timestamp_date = C.ISC_DATE(unix_days + daysFromModifiedJulianDayToUnixEpoch)
+	ts.timestamp_time = C.ISC_TIME(unix_secs*10000 + int64(t.Nanosecond())/100000)
+	return
+}

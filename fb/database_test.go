@@ -9,7 +9,9 @@ import (
 
 const (
 	TestFilename          = "/var/fbdata/go-fb-test.fdb"
-	TestConnectionString  = "database=localhost:/var/fbdata/go-fb-test.fdb; username=gotest; password=gotest; charset=NONE; role=READER;"
+	TestTimezone          = "US/Arizona"
+	// TestTimezone          = "UTC"
+	TestConnectionString  = "database=localhost:/var/fbdata/go-fb-test.fdb; username=gotest; password=gotest; charset=NONE; role=READER; timezone=" + TestTimezone + ";"
 	TestConnectionString2 = "database=localhost:/var/fbdata/go-fb-test.fdb;username=gotest;password=gotest;lowercase_names=true;page_size=2048"
 	TestConnectionString3 = "database=localhost:/var/fbdata/go-fb-test.fdb;username=bogus;password=gotest;lowercase_names=true;page_size=2048"
 	CreateStatement       = "CREATE DATABASE 'localhost:/var/fbdata/go-fb-test.fdb' USER 'gotest' PASSWORD 'gotest' PAGE_SIZE = 1024 DEFAULT CHARACTER SET NONE;"
@@ -35,6 +37,9 @@ func TestMapFromConnectionString(t *testing.T) {
 	if m["role"] != "READER" {
 		t.Error("Error finding key: role")
 	}
+	if m["timezone"] != TestTimezone {
+		t.Error("Error finding key: timezone")
+	}
 }
 
 func TestNew(t *testing.T) {
@@ -51,6 +56,7 @@ func TestNew(t *testing.T) {
 	st.Equal("gotest", db.Password)
 	st.Equal("NONE", db.Charset)
 	st.Equal("READER", db.Role)
+	st.Equal(TestTimezone, db.TimeZone)
 }
 
 func TestNew2(t *testing.T) {

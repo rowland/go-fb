@@ -121,17 +121,17 @@ func TestInsertCorrectTypes(t *testing.T) {
 
 		switch col {
 		case "I":
-			fmt.Println(sqlSchema)
+			// fmt.Println(sqlSchema)
 			if _, err = conn.Execute(sqlSchema); err != nil {
 				t.Fatalf("Error executing schema: %s", err)
 			}
 			conn.Commit()
 
-			fmt.Println(sqlInsert)
+			// fmt.Println(sqlInsert)
 			if _, err = conn.Execute(sqlInsert, 500000); err != nil {
 				t.Fatalf("Error executing insert (1): %s", err)
 			}
-			fmt.Println(sqlInsert)
+			// fmt.Println(sqlInsert)
 			if _, err = conn.Execute(sqlInsert, "500000"); err != nil {
 				t.Fatalf("Error executing insert (2): %s", err)
 			}
@@ -157,17 +157,17 @@ func TestInsertCorrectTypes(t *testing.T) {
 				t.Errorf("Expected %d, got %d", 500000, vals[0])
 			}
 		case "SI":
-			fmt.Println(sqlSchema)
+			// fmt.Println(sqlSchema)
 			if _, err = conn.Execute(sqlSchema); err != nil {
 				t.Fatalf("Error executing schema: %s", err)
 			}
 			conn.Commit()
 
-			fmt.Println(sqlInsert)
+			// fmt.Println(sqlInsert)
 			if _, err = conn.Execute(sqlInsert, 32123); err != nil {
 				t.Fatalf("Error executing insert (1): %s", err)
 			}
-			fmt.Println(sqlInsert)
+			// fmt.Println(sqlInsert)
 			if _, err = conn.Execute(sqlInsert, "32123"); err != nil {
 				t.Fatalf("Error executing insert (2): %s", err)
 			}
@@ -193,17 +193,17 @@ func TestInsertCorrectTypes(t *testing.T) {
 				t.Errorf("Expected %d, got %d", 32123, vals[0])
 			}
 		case "F":
-			fmt.Println(sqlSchema)
+			// fmt.Println(sqlSchema)
 			if _, err = conn.Execute(sqlSchema); err != nil {
 				t.Fatalf("Error executing schema: %s", err)
 			}
 			conn.Commit()
 
-			fmt.Println(sqlInsert)
+			// fmt.Println(sqlInsert)
 			if _, err = conn.Execute(sqlInsert, 5.75); err != nil {
 				t.Fatalf("Error executing insert (1): %s", err)
 			}
-			fmt.Println(sqlInsert)
+			// fmt.Println(sqlInsert)
 			if _, err = conn.Execute(sqlInsert, "5.75"); err != nil {
 				t.Fatalf("Error executing insert (2): %s", err)
 			}
@@ -230,17 +230,17 @@ func TestInsertCorrectTypes(t *testing.T) {
 				t.Errorf("Expected %f, got %f", 5.75, vals[0])
 			}
 		case "D":
-			fmt.Println(sqlSchema)
+			// fmt.Println(sqlSchema)
 			if _, err = conn.Execute(sqlSchema); err != nil {
 				t.Fatalf("Error executing schema: %s", err)
 			}
 			conn.Commit()
 
-			fmt.Println(sqlInsert)
+			// fmt.Println(sqlInsert)
 			if _, err = conn.Execute(sqlInsert, 12345.12345); err != nil {
 				t.Fatalf("Error executing insert (1): %s", err)
 			}
-			fmt.Println(sqlInsert)
+			// fmt.Println(sqlInsert)
 			if _, err = conn.Execute(sqlInsert, "12345.12345"); err != nil {
 				t.Fatalf("Error executing insert (2): %s", err)
 			}
@@ -267,17 +267,17 @@ func TestInsertCorrectTypes(t *testing.T) {
 				t.Errorf("Expected %f, got %f", 12345.12345, vals[0])
 			}
 		case "C", "VC":
-			fmt.Println(sqlSchema)
+			// fmt.Println(sqlSchema)
 			if _, err = conn.Execute(sqlSchema); err != nil {
 				t.Fatalf("Error executing schema: %s", err)
 			}
 			conn.Commit()
 
-			fmt.Println(sqlInsert)
+			// fmt.Println(sqlInsert)
 			if _, err = conn.Execute(sqlInsert, "5"); err != nil {
 				t.Fatalf("Error executing insert (1): %s", err)
 			}
-			fmt.Println(sqlInsert)
+			// fmt.Println(sqlInsert)
 			if _, err = conn.Execute(sqlInsert, 5); err != nil {
 				t.Fatalf("Error executing insert (2): %s", err)
 			}
@@ -303,17 +303,17 @@ func TestInsertCorrectTypes(t *testing.T) {
 				t.Errorf("Expected %d, got %d", "5", vals[0])
 			}
 		case "C10", "VC10":
-			fmt.Println(sqlSchema)
+			// fmt.Println(sqlSchema)
 			if _, err = conn.Execute(sqlSchema); err != nil {
 				t.Fatalf("Error executing schema: %s", err)
 			}
 			conn.Commit()
 
-			fmt.Println(sqlInsert)
+			// fmt.Println(sqlInsert)
 			if _, err = conn.Execute(sqlInsert, "1234567890"); err != nil {
 				t.Fatalf("Error executing insert (1): %s", err)
 			}
-			fmt.Println(sqlInsert)
+			// fmt.Println(sqlInsert)
 			if _, err = conn.Execute(sqlInsert, 1234567890); err != nil {
 				t.Fatalf("Error executing insert (2): %s", err)
 			}
@@ -339,7 +339,7 @@ func TestInsertCorrectTypes(t *testing.T) {
 				t.Errorf("Expected %d, got %d", "1234567890", vals[0])
 			}
 		case "VC10000":
-			fmt.Println(sqlSchema)
+			// fmt.Println(sqlSchema)
 			if _, err = conn.Execute(sqlSchema); err != nil {
 				t.Fatalf("Error executing schema: %s", err)
 			}
@@ -348,11 +348,11 @@ func TestInsertCorrectTypes(t *testing.T) {
 			bs := strings.Repeat("1", 100)
 			bi, _ := new(big.Int).SetString(bs, 10)
 
-			fmt.Println(sqlInsert)
+			// fmt.Println(sqlInsert)
 			if _, err = conn.Execute(sqlInsert, bs); err != nil {
 				t.Fatalf("Error executing insert (1): %s", err)
 			}
-			fmt.Println(sqlInsert)
+			// fmt.Println(sqlInsert)
 			if _, err = conn.Execute(sqlInsert, bi); err != nil {
 				t.Fatalf("Error executing insert (2): %s", err)
 			}
@@ -376,6 +376,70 @@ func TestInsertCorrectTypes(t *testing.T) {
 			}
 			if vals[0].(string) != bs {
 				t.Errorf("Expected %d, got %d", bs, vals[0])
+			}
+		case "TS":
+			// fmt.Println(sqlSchema)
+			if _, err = conn.Execute(sqlSchema); err != nil {
+				t.Fatalf("Error executing schema: %s", err)
+			}
+			conn.Commit()
+
+			dt := time.Date(2006, 6, 6, 3, 33, 33, 0, conn.Location)
+			dt2 := "2006/6/6 3:33:33"
+			dt3 := "2006-6-6 3:33:33"
+			// dtUTC := time.Date(2006, 6, 6, 3, 33, 33, 0, time.UTC)
+			sqlInsert4 := "INSERT INTO TEST_TS (VAL) VALUES ('2006/6/6 3:33:33');"
+
+			// fmt.Println(sqlInsert)
+			if _, err = conn.Execute(sqlInsert, dt); err != nil {
+				t.Fatalf("Error executing insert (1): %s", err)
+			}
+			if _, err = conn.Execute(sqlInsert, dt2); err != nil {
+				t.Fatalf("Error executing insert (2): %s", err)
+			}
+			if _, err = conn.Execute(sqlInsert, dt3); err != nil {
+				t.Fatalf("Error executing insert (3): %s", err)
+			}
+			if _, err = conn.Execute(sqlInsert4); err != nil {
+				t.Fatalf("Error executing insert (4): %s", err)
+			}
+
+			var vals []interface{}
+			if cursor, err = conn.Execute(sqlSelect); err != nil {
+				t.Errorf("Unexpected error in select: %s", err)
+				break
+			}
+
+			if err = cursor.Fetch(&vals); err != nil {
+				t.Errorf("Error in fetch: %s", err)
+				break
+			}
+			if !vals[0].(time.Time).Equal(dt) {
+				t.Errorf("(1) Expected %s, got %s", dt, vals[0])
+			}
+
+			if err = cursor.Fetch(&vals); err != nil {
+				t.Errorf("Error in fetch: %s", err)
+				break
+			}
+			if !vals[0].(time.Time).Equal(dt) {
+				t.Errorf("(2) Expected %s, got %s", dt, vals[0])
+			}
+
+			if err = cursor.Fetch(&vals); err != nil {
+				t.Errorf("Error in fetch: %s", err)
+				break
+			}
+			if !vals[0].(time.Time).Equal(dt) {
+				t.Errorf("(3) Expected %s, got %s", dt, vals[0])
+			}
+
+			if err = cursor.Fetch(&vals); err != nil {
+				t.Errorf("Error in fetch: %s", err)
+				break
+			}
+			if !vals[0].(time.Time).Equal(dt) {
+				t.Errorf("(4) Expected %s, got %s", dt, vals[0])
 			}
 		}
 	}

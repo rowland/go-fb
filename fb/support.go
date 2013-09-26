@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"time"
 )
 
 func float64FromIf(v interface{}) (f float64, err error) {
@@ -70,6 +71,22 @@ func int64FromIf(v interface{}) (i int64, err error) {
 	return
 }
 
+const (
+	// Mon Jan 2 15:04:05 -0700 MST 2006
+	timeWithSlashes = "2006/1/2 15:04:05"
+	timeWithDashes = "2006-1-2 15:04:05"
+)
+
+func parseUnknownTime(s string, location *time.Location) (t time.Time, err error) {
+	if t, err = time.ParseInLocation(timeWithSlashes, s, location); err == nil {
+		return
+	}
+	if t, err = time.ParseInLocation(timeWithDashes, s, location); err == nil {
+		return
+	}
+	return time.Time{}, err
+}
+
 func stringFromIf(v interface{}) (s string, err error) {
 	switch v := v.(type) {
 	case string:
@@ -100,6 +117,24 @@ func stringFromIf(v interface{}) (s string, err error) {
 		s = v.String()
 	default:
 		return "", errors.New("string value expected")
+	}
+	return
+}
+
+func timeFromIf(v interface{}, location *time.Location) (t time.Time, err error) {
+	switch v := v.(type) {
+	case string:
+		t, err = parseUnknownTime(v, location)
+	case *string:
+		t, err = parseUnknownTime(*v, location)
+	case time.Time:
+		t = v
+	case *time.Time:
+		t = *v
+	case fmt.Stringer:
+		t, err = parseUnknownTime(v.String(), location)
+	default:
+		return time.Time{}, errors.New("time value expected")
 	}
 	return
 }

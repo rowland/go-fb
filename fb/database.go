@@ -7,6 +7,7 @@ package fb
 import "C"
 import (
 	"errors"
+	"time"
 	"unsafe"
 )
 
@@ -34,6 +35,7 @@ type Database struct {
 	Charset        string
 	LowercaseNames bool
 	PageSize       int
+	TimeZone       string
 }
 
 func MapFromConnectionString(parms string) (map[string]string, error) {
@@ -81,7 +83,8 @@ func New(parms string) (db *Database, err error) {
 			return nil, errors.New("Invalid page_size: " + err.Error())
 		}
 	}
-	db = &Database{database, username, password, role, charset, lowercaseNames, pageSize}
+	timezone, _ := p["timezone"]
+	db = &Database{database, username, password, role, charset, lowercaseNames, pageSize, timezone}
 	return db, nil
 }
 
@@ -149,7 +152,11 @@ func (db *Database) Create() (*Connection, error) {
 	if C.isc_dsql_execute_immediate(&isc_status[0], &handle, &local_transact, 0, sql2, 3, nil) != 0 {
 		return nil, fbErrorCheck(&isc_status)
 	}
-	return &Connection{database: db, db: handle}, nil
+	location, err := time.LoadLocation(db.TimeZone)
+	if err != nil {
+		location = time.Local
+	}
+	return &Connection{database: db, db: handle, Location: location}, nil
 }
 
 func Create(parms string) (conn *Connection, err error) {
@@ -206,7 +213,11 @@ func (db *Database) Connect() (*Connection, error) {
 	if err := fbErrorCheck(&isc_status); err != nil {
 		return nil, err
 	}
-	return &Connection{database: db, db: handle}, nil
+	location, err := time.LoadLocation(db.TimeZone)
+	if err != nil {
+		location = time.Local
+	}
+	return &Connection{database: db, db: handle, Location: location}, nil
 }
 
 func Connect(parms string) (conn *Connection, err error) {

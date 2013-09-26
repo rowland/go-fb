@@ -18,6 +18,7 @@ import "C"
 
 import (
 	"strings"
+	"time"
 	"unsafe"
 )
 
@@ -30,6 +31,7 @@ type Connection struct {
 	dropped      bool
 	cursors      []*Cursor
 	rowsAffected int
+	Location     *time.Location
 }
 
 func (conn *Connection) check() error {
