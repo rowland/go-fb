@@ -100,10 +100,7 @@ func TestGenD(t *testing.T) {
 	}
 }
 
-func TestInsertCorrectTypes(t *testing.T) {
-	cols := []string{"I", "SI", "BI", "F", "D", "C", "C10", "VC", "VC10", "VC10000", "DT", "TM", "TS", "N92", "D92", "N154"}
-	types := []string{"INTEGER", "SMALLINT", "BIGINT", "FLOAT", "DOUBLE PRECISION", "CHAR", "CHAR(10)", "VARCHAR(1)", "VARCHAR(10)", "VARCHAR(10000)", "DATE", "TIME", "TIMESTAMP", "NUMERIC(9,2)", "DECIMAL(9,2)", "NUMERIC(15,4)"}
-
+func TestInsertInteger(t *testing.T) {
 	os.Remove(TestFilename)
 
 	conn, err := Create(TestConnectionString)
@@ -112,338 +109,423 @@ func TestInsertCorrectTypes(t *testing.T) {
 	}
 	defer conn.Drop()
 
-	for i, col := range cols {
-		sqlSchema := fmt.Sprintf("CREATE TABLE TEST_%s (VAL %s);", cols[i], types[i])
-		sqlInsert := fmt.Sprintf("INSERT INTO TEST_%s (VAL) VALUES (?);", col)
-		sqlSelect := fmt.Sprintf("SELECT * FROM TEST_%s;", col)
-		var cursor *Cursor
-		var err error
+	sqlSchema := "CREATE TABLE TEST (VAL INTEGER);"
+	sqlInsert := "INSERT INTO TEST (VAL) VALUES (?);"
+	sqlSelect := "SELECT * FROM TEST;"
 
-		switch col {
-		case "I":
-			// fmt.Println(sqlSchema)
-			if _, err = conn.Execute(sqlSchema); err != nil {
-				t.Fatalf("Error executing schema: %s", err)
-			}
-			conn.Commit()
+	var cursor *Cursor
 
-			// fmt.Println(sqlInsert)
-			if _, err = conn.Execute(sqlInsert, 500000); err != nil {
-				t.Fatalf("Error executing insert (1): %s", err)
-			}
-			// fmt.Println(sqlInsert)
-			if _, err = conn.Execute(sqlInsert, "500000"); err != nil {
-				t.Fatalf("Error executing insert (2): %s", err)
-			}
-			var vals []interface{}
-			if cursor, err = conn.Execute(sqlSelect); err != nil {
-				t.Errorf("Unexpected error in select: %s", err)
-				break
-			}
+	if _, err = conn.Execute(sqlSchema); err != nil {
+		t.Fatalf("Error executing schema: %s", err)
+	}
+	conn.Commit()
 
-			if err = cursor.Fetch(&vals); err != nil {
-				t.Errorf("Error in fetch: %s", err)
-				break
-			}
-			if vals[0].(int32) != 500000 {
-				t.Errorf("Expected %d, got %d", 500000, vals[0])
-			}
+	if _, err = conn.Execute(sqlInsert, 500000); err != nil {
+		t.Fatalf("Error executing insert (1): %s", err)
+	}
+	if _, err = conn.Execute(sqlInsert, "500000"); err != nil {
+		t.Fatalf("Error executing insert (2): %s", err)
+	}
 
-			if err = cursor.Fetch(&vals); err != nil {
-				t.Errorf("Error in fetch: %s", err)
-				break
-			}
-			if vals[0].(int32) != 500000 {
-				t.Errorf("Expected %d, got %d", 500000, vals[0])
-			}
-		case "SI":
-			// fmt.Println(sqlSchema)
-			if _, err = conn.Execute(sqlSchema); err != nil {
-				t.Fatalf("Error executing schema: %s", err)
-			}
-			conn.Commit()
+	var vals []interface{}
+	if cursor, err = conn.Execute(sqlSelect); err != nil {
+		t.Fatalf("Unexpected error in select: %s", err)
+	}
+	defer cursor.Close()
 
-			// fmt.Println(sqlInsert)
-			if _, err = conn.Execute(sqlInsert, 32123); err != nil {
-				t.Fatalf("Error executing insert (1): %s", err)
-			}
-			// fmt.Println(sqlInsert)
-			if _, err = conn.Execute(sqlInsert, "32123"); err != nil {
-				t.Fatalf("Error executing insert (2): %s", err)
-			}
-			var vals []interface{}
-			if cursor, err = conn.Execute(sqlSelect); err != nil {
-				t.Errorf("Unexpected error in select: %s", err)
-				break
-			}
+	if err = cursor.Fetch(&vals); err != nil {
+		t.Fatalf("Error in fetch: %s", err)
+	}
+	if vals[0].(int32) != 500000 {
+		t.Errorf("Expected %d, got %d", 500000, vals[0])
+	}
 
-			if err = cursor.Fetch(&vals); err != nil {
-				t.Errorf("Error in fetch: %s", err)
-				break
-			}
-			if vals[0].(int16) != 32123 {
-				t.Errorf("Expected %d, got %d", 32123, vals[0])
-			}
-
-			if err = cursor.Fetch(&vals); err != nil {
-				t.Errorf("Error in fetch: %s", err)
-				break
-			}
-			if vals[0].(int16) != 32123 {
-				t.Errorf("Expected %d, got %d", 32123, vals[0])
-			}
-		case "F":
-			// fmt.Println(sqlSchema)
-			if _, err = conn.Execute(sqlSchema); err != nil {
-				t.Fatalf("Error executing schema: %s", err)
-			}
-			conn.Commit()
-
-			// fmt.Println(sqlInsert)
-			if _, err = conn.Execute(sqlInsert, 5.75); err != nil {
-				t.Fatalf("Error executing insert (1): %s", err)
-			}
-			// fmt.Println(sqlInsert)
-			if _, err = conn.Execute(sqlInsert, "5.75"); err != nil {
-				t.Fatalf("Error executing insert (2): %s", err)
-			}
-
-			var vals []interface{}
-			if cursor, err = conn.Execute(sqlSelect); err != nil {
-				t.Errorf("Unexpected error in select: %s", err)
-				break
-			}
-
-			if err = cursor.Fetch(&vals); err != nil {
-				t.Errorf("Error in fetch: %s", err)
-				break
-			}
-			if vals[0].(float32) != 5.75 {
-				t.Errorf("Expected %f, got %f", 5.75, vals[0])
-			}
-
-			if err = cursor.Fetch(&vals); err != nil {
-				t.Errorf("Error in fetch: %s", err)
-				break
-			}
-			if vals[0].(float32) != 5.75 {
-				t.Errorf("Expected %f, got %f", 5.75, vals[0])
-			}
-		case "D":
-			// fmt.Println(sqlSchema)
-			if _, err = conn.Execute(sqlSchema); err != nil {
-				t.Fatalf("Error executing schema: %s", err)
-			}
-			conn.Commit()
-
-			// fmt.Println(sqlInsert)
-			if _, err = conn.Execute(sqlInsert, 12345.12345); err != nil {
-				t.Fatalf("Error executing insert (1): %s", err)
-			}
-			// fmt.Println(sqlInsert)
-			if _, err = conn.Execute(sqlInsert, "12345.12345"); err != nil {
-				t.Fatalf("Error executing insert (2): %s", err)
-			}
-
-			var vals []interface{}
-			if cursor, err = conn.Execute(sqlSelect); err != nil {
-				t.Errorf("Unexpected error in select: %s", err)
-				break
-			}
-
-			if err = cursor.Fetch(&vals); err != nil {
-				t.Errorf("Error in fetch: %s", err)
-				break
-			}
-			if vals[0].(float64) != 12345.12345 {
-				t.Errorf("Expected %f, got %f", 12345.12345, vals[0])
-			}
-
-			if err = cursor.Fetch(&vals); err != nil {
-				t.Errorf("Error in fetch: %s", err)
-				break
-			}
-			if vals[0].(float64) != 12345.12345 {
-				t.Errorf("Expected %f, got %f", 12345.12345, vals[0])
-			}
-		case "C", "VC":
-			// fmt.Println(sqlSchema)
-			if _, err = conn.Execute(sqlSchema); err != nil {
-				t.Fatalf("Error executing schema: %s", err)
-			}
-			conn.Commit()
-
-			// fmt.Println(sqlInsert)
-			if _, err = conn.Execute(sqlInsert, "5"); err != nil {
-				t.Fatalf("Error executing insert (1): %s", err)
-			}
-			// fmt.Println(sqlInsert)
-			if _, err = conn.Execute(sqlInsert, 5); err != nil {
-				t.Fatalf("Error executing insert (2): %s", err)
-			}
-			var vals []interface{}
-			if cursor, err = conn.Execute(sqlSelect); err != nil {
-				t.Errorf("Unexpected error in select: %s", err)
-				break
-			}
-
-			if err = cursor.Fetch(&vals); err != nil {
-				t.Errorf("Error in fetch: %s", err)
-				break
-			}
-			if vals[0].(string) != "5" {
-				t.Errorf("Expected %s, got %s", "5", vals[0])
-			}
-
-			if err = cursor.Fetch(&vals); err != nil {
-				t.Errorf("Error in fetch: %s", err)
-				break
-			}
-			if vals[0].(string) != "5" {
-				t.Errorf("Expected %d, got %d", "5", vals[0])
-			}
-		case "C10", "VC10":
-			// fmt.Println(sqlSchema)
-			if _, err = conn.Execute(sqlSchema); err != nil {
-				t.Fatalf("Error executing schema: %s", err)
-			}
-			conn.Commit()
-
-			// fmt.Println(sqlInsert)
-			if _, err = conn.Execute(sqlInsert, "1234567890"); err != nil {
-				t.Fatalf("Error executing insert (1): %s", err)
-			}
-			// fmt.Println(sqlInsert)
-			if _, err = conn.Execute(sqlInsert, 1234567890); err != nil {
-				t.Fatalf("Error executing insert (2): %s", err)
-			}
-			var vals []interface{}
-			if cursor, err = conn.Execute(sqlSelect); err != nil {
-				t.Errorf("Unexpected error in select: %s", err)
-				break
-			}
-
-			if err = cursor.Fetch(&vals); err != nil {
-				t.Errorf("Error in fetch: %s", err)
-				break
-			}
-			if vals[0].(string) != "1234567890" {
-				t.Errorf("Expected %s, got %s", "1234567890", vals[0])
-			}
-
-			if err = cursor.Fetch(&vals); err != nil {
-				t.Errorf("Error in fetch: %s", err)
-				break
-			}
-			if vals[0].(string) != "1234567890" {
-				t.Errorf("Expected %d, got %d", "1234567890", vals[0])
-			}
-		case "VC10000":
-			// fmt.Println(sqlSchema)
-			if _, err = conn.Execute(sqlSchema); err != nil {
-				t.Fatalf("Error executing schema: %s", err)
-			}
-			conn.Commit()
-
-			bs := strings.Repeat("1", 100)
-			bi, _ := new(big.Int).SetString(bs, 10)
-
-			// fmt.Println(sqlInsert)
-			if _, err = conn.Execute(sqlInsert, bs); err != nil {
-				t.Fatalf("Error executing insert (1): %s", err)
-			}
-			// fmt.Println(sqlInsert)
-			if _, err = conn.Execute(sqlInsert, bi); err != nil {
-				t.Fatalf("Error executing insert (2): %s", err)
-			}
-			var vals []interface{}
-			if cursor, err = conn.Execute(sqlSelect); err != nil {
-				t.Errorf("Unexpected error in select: %s", err)
-				break
-			}
-
-			if err = cursor.Fetch(&vals); err != nil {
-				t.Errorf("Error in fetch: %s", err)
-				break
-			}
-			if vals[0].(string) != bs {
-				t.Errorf("Expected %s, got %s", bs, vals[0])
-			}
-
-			if err = cursor.Fetch(&vals); err != nil {
-				t.Errorf("Error in fetch: %s", err)
-				break
-			}
-			if vals[0].(string) != bs {
-				t.Errorf("Expected %d, got %d", bs, vals[0])
-			}
-		case "TS":
-			// fmt.Println(sqlSchema)
-			if _, err = conn.Execute(sqlSchema); err != nil {
-				t.Fatalf("Error executing schema: %s", err)
-			}
-			conn.Commit()
-
-			dt := time.Date(2006, 6, 6, 3, 33, 33, 0, conn.Location)
-			dt2 := "2006/6/6 3:33:33"
-			dt3 := "2006-6-6 3:33:33"
-			// dtUTC := time.Date(2006, 6, 6, 3, 33, 33, 0, time.UTC)
-			sqlInsert4 := "INSERT INTO TEST_TS (VAL) VALUES ('2006/6/6 3:33:33');"
-
-			// fmt.Println(sqlInsert)
-			if _, err = conn.Execute(sqlInsert, dt); err != nil {
-				t.Fatalf("Error executing insert (1): %s", err)
-			}
-			if _, err = conn.Execute(sqlInsert, dt2); err != nil {
-				t.Fatalf("Error executing insert (2): %s", err)
-			}
-			if _, err = conn.Execute(sqlInsert, dt3); err != nil {
-				t.Fatalf("Error executing insert (3): %s", err)
-			}
-			if _, err = conn.Execute(sqlInsert4); err != nil {
-				t.Fatalf("Error executing insert (4): %s", err)
-			}
-
-			var vals []interface{}
-			if cursor, err = conn.Execute(sqlSelect); err != nil {
-				t.Errorf("Unexpected error in select: %s", err)
-				break
-			}
-
-			if err = cursor.Fetch(&vals); err != nil {
-				t.Errorf("Error in fetch: %s", err)
-				break
-			}
-			if !vals[0].(time.Time).Equal(dt) {
-				t.Errorf("(1) Expected %s, got %s", dt, vals[0])
-			}
-
-			if err = cursor.Fetch(&vals); err != nil {
-				t.Errorf("Error in fetch: %s", err)
-				break
-			}
-			if !vals[0].(time.Time).Equal(dt) {
-				t.Errorf("(2) Expected %s, got %s", dt, vals[0])
-			}
-
-			if err = cursor.Fetch(&vals); err != nil {
-				t.Errorf("Error in fetch: %s", err)
-				break
-			}
-			if !vals[0].(time.Time).Equal(dt) {
-				t.Errorf("(3) Expected %s, got %s", dt, vals[0])
-			}
-
-			if err = cursor.Fetch(&vals); err != nil {
-				t.Errorf("Error in fetch: %s", err)
-				break
-			}
-			if !vals[0].(time.Time).Equal(dt) {
-				t.Errorf("(4) Expected %s, got %s", dt, vals[0])
-			}
-		}
+	if err = cursor.Fetch(&vals); err != nil {
+		t.Fatalf("Error in fetch: %s", err)
+	}
+	if vals[0].(int32) != 500000 {
+		t.Fatalf("Expected %d, got %d", 500000, vals[0])
 	}
 }
+
+func TestInsertSmallint(t *testing.T) {
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	sqlSchema := "CREATE TABLE TEST (VAL SMALLINT);"
+	sqlInsert := "INSERT INTO TEST (VAL) VALUES (?);"
+	sqlSelect := "SELECT * FROM TEST;"
+
+	var cursor *Cursor
+
+	if _, err = conn.Execute(sqlSchema); err != nil {
+		t.Fatalf("Error executing schema: %s", err)
+	}
+	conn.Commit()
+
+	if _, err = conn.Execute(sqlInsert, 32123); err != nil {
+		t.Fatalf("Error executing insert (1): %s", err)
+	}
+	if _, err = conn.Execute(sqlInsert, "32123"); err != nil {
+		t.Fatalf("Error executing insert (2): %s", err)
+	}
+
+	var vals []interface{}
+	if cursor, err = conn.Execute(sqlSelect); err != nil {
+		t.Fatalf("Unexpected error in select: %s", err)
+	}
+	defer cursor.Close()
+
+	if err = cursor.Fetch(&vals); err != nil {
+		t.Fatalf("Error in fetch: %s", err)
+	}
+	if vals[0].(int16) != 32123 {
+		t.Fatalf("Expected %d, got %d", 32123, vals[0])
+	}
+
+	if err = cursor.Fetch(&vals); err != nil {
+		t.Fatalf("Error in fetch: %s", err)
+	}
+	if vals[0].(int16) != 32123 {
+		t.Fatalf("Expected %d, got %d", 32123, vals[0])
+	}
+}
+
+func TestInsertFloat(t *testing.T) {
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	sqlSchema := "CREATE TABLE TEST (VAL FLOAT);"
+	sqlInsert := "INSERT INTO TEST (VAL) VALUES (?);"
+	sqlSelect := "SELECT * FROM TEST;"
+
+	var cursor *Cursor
+
+	if _, err = conn.Execute(sqlSchema); err != nil {
+		t.Fatalf("Error executing schema: %s", err)
+	}
+	conn.Commit()
+
+	if _, err = conn.Execute(sqlInsert, 5.75); err != nil {
+		t.Fatalf("Error executing insert (1): %s", err)
+	}
+	if _, err = conn.Execute(sqlInsert, "5.75"); err != nil {
+		t.Fatalf("Error executing insert (2): %s", err)
+	}
+
+	var vals []interface{}
+	if cursor, err = conn.Execute(sqlSelect); err != nil {
+		t.Fatalf("Unexpected error in select: %s", err)
+	}
+	defer cursor.Close()
+
+	if err = cursor.Fetch(&vals); err != nil {
+		t.Fatalf("Error in fetch: %s", err)
+	}
+	if vals[0].(float32) != 5.75 {
+		t.Fatalf("Expected %f, got %f", 5.75, vals[0])
+	}
+
+	if err = cursor.Fetch(&vals); err != nil {
+		t.Fatalf("Error in fetch: %s", err)
+	}
+	if vals[0].(float32) != 5.75 {
+		t.Fatalf("Expected %f, got %f", 5.75, vals[0])
+	}
+}
+
+func TestInsertDouble(t *testing.T) {
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	sqlSchema := "CREATE TABLE TEST (VAL DOUBLE PRECISION);"
+	sqlInsert := "INSERT INTO TEST (VAL) VALUES (?);"
+	sqlSelect := "SELECT * FROM TEST;"
+
+	var cursor *Cursor
+
+	if _, err = conn.Execute(sqlSchema); err != nil {
+		t.Fatalf("Error executing schema: %s", err)
+	}
+	conn.Commit()
+
+	if _, err = conn.Execute(sqlInsert, 12345.12345); err != nil {
+		t.Fatalf("Error executing insert (1): %s", err)
+	}
+	if _, err = conn.Execute(sqlInsert, "12345.12345"); err != nil {
+		t.Fatalf("Error executing insert (2): %s", err)
+	}
+
+	var vals []interface{}
+	if cursor, err = conn.Execute(sqlSelect); err != nil {
+		t.Fatalf("Unexpected error in select: %s", err)
+	}
+	defer cursor.Close()
+
+	if err = cursor.Fetch(&vals); err != nil {
+		t.Fatalf("Error in fetch: %s", err)
+	}
+	if vals[0].(float64) != 12345.12345 {
+		t.Fatalf("Expected %f, got %f", 12345.12345, vals[0])
+	}
+
+	if err = cursor.Fetch(&vals); err != nil {
+		t.Fatalf("Error in fetch: %s", err)
+	}
+	if vals[0].(float64) != 12345.12345 {
+		t.Fatalf("Expected %f, got %f", 12345.12345, vals[0])
+	}
+}
+
+func TestInsertChar(t *testing.T) {
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	sqlSchema := "CREATE TABLE TEST (VAL1 CHAR, VAL10 VARCHAR(10));"
+	sqlInsert := "INSERT INTO TEST (VAL1, VAL10) VALUES (?, ?);"
+	sqlSelect := "SELECT * FROM TEST;"
+
+	var cursor *Cursor
+
+	if _, err = conn.Execute(sqlSchema); err != nil {
+		t.Fatalf("Error executing schema: %s", err)
+	}
+	conn.Commit()
+
+	if _, err = conn.Execute(sqlInsert, "5", "1234567890"); err != nil {
+		t.Fatalf("Error executing insert (1): %s", err)
+	}
+	if _, err = conn.Execute(sqlInsert, 5, 1234567890); err != nil {
+		t.Fatalf("Error executing insert (2): %s", err)
+	}
+
+	var vals []interface{}
+	if cursor, err = conn.Execute(sqlSelect); err != nil {
+		t.Fatalf("Unexpected error in select: %s", err)
+	}
+	defer cursor.Close()
+
+	if err = cursor.Fetch(&vals); err != nil {
+		t.Fatalf("Error in fetch: %s", err)
+	}
+	if vals[0].(string) != "5" {
+		t.Fatalf("Expected %s, got %s", "5", vals[0])
+	}
+	if vals[1].(string) != "1234567890" {
+		t.Fatalf("Expected %s, got %s", "1234567890", vals[1])
+	}
+
+	if err = cursor.Fetch(&vals); err != nil {
+		t.Fatalf("Error in fetch: %s", err)
+	}
+	if vals[0].(string) != "5" {
+		t.Fatalf("Expected %d, got %d", "5", vals[0])
+	}
+	if vals[1].(string) != "1234567890" {
+		t.Fatalf("Expected %s, got %s", "1234567890", vals[1])
+	}
+}
+
+func TestInsertVarchar(t *testing.T) {
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	sqlSchema := "CREATE TABLE TEST (VAL1 VARCHAR(1), VAL10 VARCHAR(10));"
+	sqlInsert := "INSERT INTO TEST (VAL1, VAL10) VALUES (?, ?);"
+	sqlSelect := "SELECT * FROM TEST;"
+
+	var cursor *Cursor
+
+	if _, err = conn.Execute(sqlSchema); err != nil {
+		t.Fatalf("Error executing schema: %s", err)
+	}
+	conn.Commit()
+
+	if _, err = conn.Execute(sqlInsert, "5", "1234567890"); err != nil {
+		t.Fatalf("Error executing insert (1): %s", err)
+	}
+	if _, err = conn.Execute(sqlInsert, 5, 1234567890); err != nil {
+		t.Fatalf("Error executing insert (2): %s", err)
+	}
+
+	var vals []interface{}
+	if cursor, err = conn.Execute(sqlSelect); err != nil {
+		t.Fatalf("Unexpected error in select: %s", err)
+	}
+	defer cursor.Close()
+
+	if err = cursor.Fetch(&vals); err != nil {
+		t.Fatalf("Error in fetch: %s", err)
+	}
+	if vals[0].(string) != "5" {
+		t.Fatalf("Expected %s, got %s", "5", vals[0])
+	}
+	if vals[1].(string) != "1234567890" {
+		t.Fatalf("Expected %s, got %s", "1234567890", vals[1])
+	}
+
+	if err = cursor.Fetch(&vals); err != nil {
+		t.Fatalf("Error in fetch: %s", err)
+	}
+	if vals[0].(string) != "5" {
+		t.Fatalf("Expected %d, got %d", "5", vals[0])
+	}
+	if vals[1].(string) != "1234567890" {
+		t.Fatalf("Expected %s, got %s", "1234567890", vals[1])
+	}
+}
+
+func TestInsertVarchar10000(t *testing.T) {
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	sqlSchema := "CREATE TABLE TEST (VAL VARCHAR(10000));"
+	sqlInsert := "INSERT INTO TEST (VAL) VALUES (?);"
+	sqlSelect := "SELECT * FROM TEST;"
+
+	var cursor *Cursor
+
+	if _, err = conn.Execute(sqlSchema); err != nil {
+		t.Fatalf("Error executing schema: %s", err)
+	}
+	conn.Commit()
+
+	bs := strings.Repeat("1", 100)
+	bi, _ := new(big.Int).SetString(bs, 10)
+
+	if _, err = conn.Execute(sqlInsert, bs); err != nil {
+		t.Fatalf("Error executing insert (1): %s", err)
+	}
+	if _, err = conn.Execute(sqlInsert, bi); err != nil {
+		t.Fatalf("Error executing insert (2): %s", err)
+	}
+
+	var vals []interface{}
+	if cursor, err = conn.Execute(sqlSelect); err != nil {
+		t.Fatalf("Unexpected error in select: %s", err)
+	}
+	defer cursor.Close()
+
+	if err = cursor.Fetch(&vals); err != nil {
+		t.Fatalf("Error in fetch: %s", err)
+	}
+	if vals[0].(string) != bs {
+		t.Fatalf("Expected %s, got %s", bs, vals[0])
+	}
+
+	if err = cursor.Fetch(&vals); err != nil {
+		t.Fatalf("Error in fetch: %s", err)
+	}
+	if vals[0].(string) != bs {
+		t.Fatalf("Expected %d, got %d", bs, vals[0])
+	}
+}
+
+func TestInsertTimestamp(t *testing.T) {
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	sqlSchema := "CREATE TABLE TEST (VAL TIMESTAMP);"
+	sqlInsert := "INSERT INTO TEST (VAL) VALUES (?);"
+	sqlSelect := "SELECT * FROM TEST;"
+
+	var cursor *Cursor
+
+	if _, err = conn.Execute(sqlSchema); err != nil {
+		t.Fatalf("Error executing schema: %s", err)
+	}
+	conn.Commit()
+
+	dt := time.Date(2006, 6, 6, 3, 33, 33, 0, conn.Location)
+	dt2 := "2006/6/6 3:33:33"
+	dt3 := "2006-6-6 3:33:33"
+	sqlInsert4 := "INSERT INTO TEST (VAL) VALUES ('2006/6/6 3:33:33');"
+
+	if _, err = conn.Execute(sqlInsert, dt); err != nil {
+		t.Fatalf("Error executing insert (1): %s", err)
+	}
+	if _, err = conn.Execute(sqlInsert, dt2); err != nil {
+		t.Fatalf("Error executing insert (2): %s", err)
+	}
+	if _, err = conn.Execute(sqlInsert, dt3); err != nil {
+		t.Fatalf("Error executing insert (3): %s", err)
+	}
+	if _, err = conn.Execute(sqlInsert4); err != nil {
+		t.Fatalf("Error executing insert (4): %s", err)
+	}
+
+	var vals []interface{}
+	if cursor, err = conn.Execute(sqlSelect); err != nil {
+		t.Fatalf("Unexpected error in select: %s", err)
+	}
+	defer cursor.Close()
+
+	if err = cursor.Fetch(&vals); err != nil {
+		t.Fatalf("Error in fetch: %s", err)
+	}
+	if !vals[0].(time.Time).Equal(dt) {
+		t.Fatalf("(1) Expected %s, got %s", dt, vals[0])
+	}
+
+	if err = cursor.Fetch(&vals); err != nil {
+		t.Fatalf("Error in fetch: %s", err)
+	}
+	if !vals[0].(time.Time).Equal(dt) {
+		t.Fatalf("(2) Expected %s, got %s", dt, vals[0])
+	}
+
+	if err = cursor.Fetch(&vals); err != nil {
+		t.Fatalf("Error in fetch: %s", err)
+	}
+	if !vals[0].(time.Time).Equal(dt) {
+		t.Fatalf("(3) Expected %s, got %s", dt, vals[0])
+	}
+
+	if err = cursor.Fetch(&vals); err != nil {
+		t.Fatalf("Error in fetch: %s", err)
+	}
+	if !vals[0].(time.Time).Equal(dt) {
+		t.Fatalf("(4) Expected %s, got %s", dt, vals[0])
+	}
+}
+
+// cols := []string{"BI", "DT", "TM", "N92", "D92", "N154"}
+// types := []string{"BIGINT", "DATE", "TIME", "NUMERIC(9,2)", "DECIMAL(9,2)", "NUMERIC(15,4)"}
 
 /*
   Database.create(@parms) do |connection|
