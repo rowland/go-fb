@@ -416,6 +416,66 @@ func TestInsertTimestamp(t *testing.T) {
 	}
 }
 
+func TestInsertNumeric(t *testing.T) {
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	sqlSchema := "CREATE TABLE TEST (VAL1 NUMERIC(9,2), VAL2 NUMERIC(15,4), VAL3 NUMERIC(2,1));"
+	sqlInsert := "INSERT INTO TEST (VAL1, VAL2, VAL3) VALUES (?, ?, ?);"
+	sqlSelect := "SELECT * FROM TEST;"
+
+	var cursor *Cursor
+
+	if _, err = conn.Execute(sqlSchema); err != nil {
+		t.Fatalf("Error executing schema: %s", err)
+	}
+	conn.Commit()
+
+	if _, err = conn.Execute(sqlInsert, 12345.12, 12345.1234, 12.1); err != nil {
+		t.Fatalf("Error executing insert: %s", err)
+	}
+	if _, err = conn.Execute(sqlInsert, "12345.12", "12345.1234", "12.1"); err != nil {
+		t.Fatalf("Error executing insert: %s", err)
+	}
+
+	var vals []interface{}
+	if cursor, err = conn.Execute(sqlSelect); err != nil {
+		t.Fatalf("Unexpected error in select: %s", err)
+	}
+	defer cursor.Close()
+
+	if err = cursor.Fetch(&vals); err != nil {
+		t.Fatalf("Error in fetch: %s", err)
+	}
+	if vals[0].(float64) != 12345.12 {
+		t.Fatalf("(0) Expected %f, got %v", 12345.12, vals[0])
+	}
+	if vals[1].(float64) != 12345.1234 {
+		t.Fatalf("(1) Expected %f, got %v", 12345.1234, vals[1])
+	}
+	if vals[2].(float64) != 12.1 {
+		t.Fatalf("(2) Expected %f, got %v", 12.1, vals[2])
+	}
+
+	if err = cursor.Fetch(&vals); err != nil {
+		t.Fatalf("Error in fetch: %s", err)
+	}
+	if vals[0].(float64) != 12345.12 {
+		t.Fatalf("(0) Expected %f, got %v", 12345.12, vals[0])
+	}
+	if vals[1].(float64) != 12345.1234 {
+		t.Fatalf("(1) Expected %f, got %v", 12345.1234, vals[1])
+	}
+	if vals[2].(float64) != 12.1 {
+		t.Fatalf("(2) Expected %f, got %v", 12.1, vals[2])
+	}
+}
+
 // TODO: "BI",     "DT",   "TM",   "N92",          "D92",          "N154"
 //       "BIGINT", "DATE", "TIME", "NUMERIC(9,2)", "DECIMAL(9,2)", "NUMERIC(15,4)"
 

@@ -258,17 +258,13 @@ func (cursor *Cursor) setInputParams(args []interface{}) (err error) {
 				offset = fbAlign(offset, alignment)
 				ivar.sqldata = (*C.ISC_SCHAR)(unsafe.Pointer(uintptr(unsafe.Pointer(cursor.i_buffer)) + uintptr(offset)))
 				if ivar.sqlscale < 0 {
-					ratio := 1
-					for scnt := C.ISC_SHORT(0); scnt > ivar.sqlscale; scnt-- {
-						ratio *= 10
-					}
 					var dvalue float64
 					dvalue, err = float64FromIf(arg)
 					if err != nil {
 						return
 					}
-					dvalue *= float64(ratio)
-					lvalue = C.ISC_LONG(dvalue + 0.5)
+					dvalue *= math.Pow10(-int(ivar.sqlscale))
+					lvalue = C.ISC_LONG(int64(dvalue))
 				} else {
 					var ivalue int64
 					ivalue, err = int64FromIf(arg)
@@ -288,17 +284,13 @@ func (cursor *Cursor) setInputParams(args []interface{}) (err error) {
 				offset = fbAlign(offset, alignment)
 				ivar.sqldata = (*C.ISC_SCHAR)(unsafe.Pointer(uintptr(unsafe.Pointer(cursor.i_buffer)) + uintptr(offset)))
 				if ivar.sqlscale < 0 {
-					ratio := 1
-					for scnt := C.ISC_SHORT(0); scnt > ivar.sqlscale; scnt-- {
-						ratio *= 10
-					}
 					var dvalue float64
 					dvalue, err = float64FromIf(arg)
 					if err != nil {
 						return
 					}
-					dvalue *= float64(ratio)
-					lvalue = C.ISC_LONG(dvalue + 0.5)
+					dvalue *= math.Pow10(-int(ivar.sqlscale))
+					lvalue = C.ISC_LONG(int64(dvalue))
 				} else {
 					var ivalue int64
 					ivalue, err = int64FromIf(arg)
@@ -352,16 +344,12 @@ func (cursor *Cursor) setInputParams(args []interface{}) (err error) {
 				ivar.sqldata = (*C.ISC_SCHAR)(unsafe.Pointer(uintptr(unsafe.Pointer(cursor.i_buffer)) + uintptr(offset)))
 
 				if ivar.sqlscale < 0 {
-					ratio := 1
-					for scnt := C.ISC_SHORT(0); scnt > ivar.sqlscale; scnt-- {
-						ratio *= 10;
-					}
 					var dvalue float64
 					dvalue, err = float64FromIf(arg)
 					if err != nil {
 						return
 					}
-					dvalue *= float64(ratio)
+					dvalue *= math.Pow10(-int(ivar.sqlscale))
 					llvalue = C.ISC_INT64(int64(dvalue))
 				} else {
 					var ivalue int64
@@ -972,24 +960,14 @@ func (cursor *Cursor) Fetch(row interface{}) (err error) {
 			case C.SQL_SHORT:
 				sval := *(*C.short)(unsafe.Pointer(sqlvar.sqldata))
 				if sqlvar.sqlscale < 0 {
-					ratio := 1
-					for scnt := C.ISC_SHORT(0); scnt > sqlvar.sqlscale; scnt-- {
-						ratio *= 10
-					}
-					dval := float64(sval) / float64(ratio)
-					val = dval
+					val = float64(sval) / math.Pow10(-int(sqlvar.sqlscale))
 				} else {
 					val = int16(sval)
 				}
 			case C.SQL_LONG:
 				lval := *(*C.ISC_LONG)(unsafe.Pointer(sqlvar.sqldata))
 				if sqlvar.sqlscale < 0 {
-					ratio := 1
-					for scnt := C.ISC_SHORT(0); scnt > sqlvar.sqlscale; scnt-- {
-						ratio *= 10
-					}
-					dval := float64(lval) / float64(ratio)
-					val = dval
+					val = float64(lval) * math.Pow10(int(sqlvar.sqlscale))
 				} else {
 					val = int32(lval)
 				}
@@ -1002,12 +980,7 @@ func (cursor *Cursor) Fetch(row interface{}) (err error) {
 			case C.SQL_INT64:
 				ival := *(*C.ISC_INT64)(unsafe.Pointer(sqlvar.sqldata))
 				if sqlvar.sqlscale < 0 {
-					ratio := 1
-					for scnt := C.ISC_SHORT(0); scnt > sqlvar.sqlscale; scnt-- {
-						ratio *= 10
-					}
-					dval := float64(ival) / float64(ratio)
-					val = dval
+					val = float64(ival) * math.Pow10(int(sqlvar.sqlscale))
 				} else {
 					val = int64(ival)
 				}
