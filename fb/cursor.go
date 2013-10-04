@@ -87,7 +87,7 @@ func (cursor *Cursor) execute2(sql string, args ...interface{}) (rowsAffected in
 	sql2 := C.CString(sql)
 	defer C.free(unsafe.Pointer(sql2))
 	sql3 := (*C.ISC_SCHAR)(unsafe.Pointer(sql2))
-	C.isc_dsql_prepare(&isc_status[0], &cursor.connection.transact, &cursor.stmt, nullTerminated, sql3, C.SQLDA_VERSION1, cursor.o_sqlda)
+	C.isc_dsql_prepare(&isc_status[0], &cursor.connection.transact, &cursor.stmt, nullTerminated, sql3, C.SQL_DIALECT_CURRENT, cursor.o_sqlda)
 	if err = fbErrorCheck(&isc_status); err != nil {
 		return
 	}
@@ -344,6 +344,34 @@ func (cursor *Cursor) setInputParams(args []interface{}) (err error) {
 				}
 
 				*(*float64)(unsafe.Pointer(ivar.sqldata)) = dvalue
+				offset += alignment
+
+			case C.SQL_INT64:
+				var llvalue C.ISC_INT64
+				offset = fbAlign(offset, alignment)
+				ivar.sqldata = (*C.ISC_SCHAR)(unsafe.Pointer(uintptr(unsafe.Pointer(cursor.i_buffer)) + uintptr(offset)))
+
+				if ivar.sqlscale < 0 {
+					ratio := 1
+					for scnt := C.ISC_SHORT(0); scnt > ivar.sqlscale; scnt-- {
+						ratio *= 10;
+					}
+					var dvalue float64
+					dvalue, err = float64FromIf(arg)
+					if err != nil {
+						return
+					}
+					dvalue *= float64(ratio)
+					llvalue = C.ISC_INT64(int64(dvalue))
+				} else {
+					var ivalue int64
+					ivalue, err = int64FromIf(arg)
+					if err != nil {
+						return
+					}
+					llvalue = C.ISC_INT64(ivalue)
+				}
+				*(*C.ISC_INT64)(unsafe.Pointer(ivar.sqldata)) = llvalue
 				offset += alignment
 
 			case C.SQL_TIMESTAMP:
@@ -944,7 +972,7 @@ func (cursor *Cursor) Fetch(row interface{}) (err error) {
 			case C.SQL_SHORT:
 				sval := *(*C.short)(unsafe.Pointer(sqlvar.sqldata))
 				if sqlvar.sqlscale < 0 {
-					ratio := C.short(1)
+					ratio := 1
 					for scnt := C.ISC_SHORT(0); scnt > sqlvar.sqlscale; scnt-- {
 						ratio *= 10
 					}
@@ -956,7 +984,7 @@ func (cursor *Cursor) Fetch(row interface{}) (err error) {
 			case C.SQL_LONG:
 				lval := *(*C.ISC_LONG)(unsafe.Pointer(sqlvar.sqldata))
 				if sqlvar.sqlscale < 0 {
-					ratio := C.short(1)
+					ratio := 1
 					for scnt := C.ISC_SHORT(0); scnt > sqlvar.sqlscale; scnt-- {
 						ratio *= 10
 					}
@@ -971,9 +999,20 @@ func (cursor *Cursor) Fetch(row interface{}) (err error) {
 			case C.SQL_DOUBLE:
 				dval := *(*float64)(unsafe.Pointer(sqlvar.sqldata))
 				val = dval
+			case C.SQL_INT64:
+				ival := *(*C.ISC_INT64)(unsafe.Pointer(sqlvar.sqldata))
+				if sqlvar.sqlscale < 0 {
+					ratio := 1
+					for scnt := C.ISC_SHORT(0); scnt > sqlvar.sqlscale; scnt-- {
+						ratio *= 10
+					}
+					dval := float64(ival) / float64(ratio)
+					val = dval
+				} else {
+					val = int64(ival)
+				}
 			case C.SQL_TIMESTAMP:
 				isc_ts := *(*C.ISC_TIMESTAMP)(unsafe.Pointer(sqlvar.sqldata))
-				// fmt.Printf("< date: %v, time: %v\n", isc_ts.timestamp_date, isc_ts.timestamp_time)
 				val = timeFromTimestamp(isc_ts, cursor.connection.Location)
 				break
 			}

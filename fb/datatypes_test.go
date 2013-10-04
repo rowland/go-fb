@@ -90,6 +90,47 @@ func TestInsertSmallint(t *testing.T) {
 	}
 }
 
+func TestInsertBigint(t *testing.T) {
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	sqlSchema := "CREATE TABLE TEST (VAL1 BIGINT, VAL2 BIGINT);"
+	sqlInsert := "INSERT INTO TEST (VAL1, VAL2) VALUES (?, ?);"
+	sqlSelect := "SELECT * FROM TEST;"
+
+	var cursor *Cursor
+
+	if _, err = conn.Execute(sqlSchema); err != nil {
+		t.Fatalf("Error executing schema: %s", err)
+	}
+	conn.Commit()
+
+	if _, err = conn.Execute(sqlInsert, 5000000000, "5000000000"); err != nil {
+		t.Fatalf("Error executing insert: %s", err)
+	}
+
+	var vals []interface{}
+	if cursor, err = conn.Execute(sqlSelect); err != nil {
+		t.Fatalf("Unexpected error in select: %s", err)
+	}
+	defer cursor.Close()
+
+	if err = cursor.Fetch(&vals); err != nil {
+		t.Fatalf("Error in fetch: %s", err)
+	}
+	if vals[0].(int64) != 5000000000 {
+		t.Errorf("(0) Expected %d, got %d", 5000000000, vals[0])
+	}
+	if vals[1].(int64) != 5000000000 {
+		t.Fatalf("(1) Expected %d, got %d", 5000000000, vals[1])
+	}
+}
+
 func TestInsertFloat(t *testing.T) {
 	os.Remove(TestFilename)
 
