@@ -254,6 +254,7 @@ func (cursor *Cursor) setInputParams(args []interface{}) (err error) {
 				offset += C.ISC_SHORT(vary.vary_length) + C.SHORT_SIZE
 
 			case C.SQL_SHORT:
+				// fmt.Println("Insert SQL_SHORT")
 				var lvalue C.ISC_LONG
 				offset = fbAlign(offset, alignment)
 				ivar.sqldata = (*C.ISC_SCHAR)(unsafe.Pointer(uintptr(unsafe.Pointer(cursor.i_buffer)) + uintptr(offset)))
@@ -280,6 +281,7 @@ func (cursor *Cursor) setInputParams(args []interface{}) (err error) {
 				offset += alignment
 
 			case C.SQL_LONG:
+				// fmt.Println("Insert SQL_LONG")
 				var lvalue C.ISC_LONG
 				offset = fbAlign(offset, alignment)
 				ivar.sqldata = (*C.ISC_SCHAR)(unsafe.Pointer(uintptr(unsafe.Pointer(cursor.i_buffer)) + uintptr(offset)))
@@ -306,6 +308,7 @@ func (cursor *Cursor) setInputParams(args []interface{}) (err error) {
 				offset += alignment
 
 			case C.SQL_FLOAT:
+				// fmt.Println("Insert SQL_FLOAT")
 				offset = fbAlign(offset, alignment)
 				ivar.sqldata = (*C.ISC_SCHAR)(unsafe.Pointer(uintptr(unsafe.Pointer(cursor.i_buffer)) + uintptr(offset)))
 				var dvalue float64
@@ -327,6 +330,7 @@ func (cursor *Cursor) setInputParams(args []interface{}) (err error) {
 				offset += alignment
 
 			case C.SQL_DOUBLE:
+				// fmt.Println("Insert SQL_DOUBLE")
 				offset = fbAlign(offset, alignment)
 				ivar.sqldata = (*C.ISC_SCHAR)(unsafe.Pointer(uintptr(unsafe.Pointer(cursor.i_buffer)) + uintptr(offset)))
 				var dvalue float64
@@ -339,6 +343,7 @@ func (cursor *Cursor) setInputParams(args []interface{}) (err error) {
 				offset += alignment
 
 			case C.SQL_INT64:
+				// fmt.Println("Insert SQL_INT64")
 				var llvalue C.ISC_INT64
 				offset = fbAlign(offset, alignment)
 				ivar.sqldata = (*C.ISC_SCHAR)(unsafe.Pointer(uintptr(unsafe.Pointer(cursor.i_buffer)) + uintptr(offset)))
@@ -967,20 +972,23 @@ func (cursor *Cursor) Fetch(row interface{}) (err error) {
 			case C.SQL_LONG:
 				lval := *(*C.ISC_LONG)(unsafe.Pointer(sqlvar.sqldata))
 				if sqlvar.sqlscale < 0 {
-					val = float64(lval) * math.Pow10(int(sqlvar.sqlscale))
+					val = float64(lval) / math.Pow10(-int(sqlvar.sqlscale))
 				} else {
 					val = int32(lval)
 				}
 			case C.SQL_FLOAT:
+				// fmt.Println("Fetch SQL_FLOAT")
 				fval := *(*float32)(unsafe.Pointer(sqlvar.sqldata))
 				val = fval
 			case C.SQL_DOUBLE:
+				// fmt.Println("Fetch SQL_DOUBLE")
 				dval := *(*float64)(unsafe.Pointer(sqlvar.sqldata))
 				val = dval
 			case C.SQL_INT64:
+				// fmt.Println("Fetch SQL_INT64")
 				ival := *(*C.ISC_INT64)(unsafe.Pointer(sqlvar.sqldata))
 				if sqlvar.sqlscale < 0 {
-					val = float64(ival) * math.Pow10(int(sqlvar.sqlscale))
+					val = float64(ival) / math.Pow10(-int(sqlvar.sqlscale))
 				} else {
 					val = int64(ival)
 				}

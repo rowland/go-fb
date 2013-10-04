@@ -425,7 +425,7 @@ func TestInsertNumeric(t *testing.T) {
 	}
 	defer conn.Drop()
 
-	sqlSchema := "CREATE TABLE TEST (VAL1 NUMERIC(9,2), VAL2 NUMERIC(15,4), VAL3 NUMERIC(2,1));"
+	sqlSchema := "CREATE TABLE TEST (VAL1 NUMERIC(9,2), VAL2 NUMERIC(15,4), VAL3 NUMERIC(3,1));"
 	sqlInsert := "INSERT INTO TEST (VAL1, VAL2, VAL3) VALUES (?, ?, ?);"
 	sqlSelect := "SELECT * FROM TEST;"
 
@@ -476,8 +476,68 @@ func TestInsertNumeric(t *testing.T) {
 	}
 }
 
-// TODO: "BI",     "DT",   "TM",   "N92",          "D92",          "N154"
-//       "BIGINT", "DATE", "TIME", "NUMERIC(9,2)", "DECIMAL(9,2)", "NUMERIC(15,4)"
+func TestInsertDecimal(t *testing.T) {
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	sqlSchema := "CREATE TABLE TEST (VAL1 DECIMAL(9,2), VAL2 DECIMAL(15,4), VAL3 DECIMAL(3,1));"
+	sqlInsert := "INSERT INTO TEST (VAL1, VAL2, VAL3) VALUES (?, ?, ?);"
+	sqlSelect := "SELECT * FROM TEST;"
+
+	var cursor *Cursor
+
+	if _, err = conn.Execute(sqlSchema); err != nil {
+		t.Fatalf("Error executing schema: %s", err)
+	}
+	conn.Commit()
+
+	if _, err = conn.Execute(sqlInsert, 12345.12, 12345.1234, 12.1); err != nil {
+		t.Fatalf("Error executing insert: %s", err)
+	}
+	if _, err = conn.Execute(sqlInsert, "12345.12", "12345.1234", "12.1"); err != nil {
+		t.Fatalf("Error executing insert: %s", err)
+	}
+
+	var vals []interface{}
+	if cursor, err = conn.Execute(sqlSelect); err != nil {
+		t.Fatalf("Unexpected error in select: %s", err)
+	}
+	defer cursor.Close()
+
+	if err = cursor.Fetch(&vals); err != nil {
+		t.Fatalf("Error in fetch: %s", err)
+	}
+	if vals[0].(float64) != 12345.12 {
+		t.Fatalf("(0) Expected %f, got %v", 12345.12, vals[0])
+	}
+	if vals[1].(float64) != 12345.1234 {
+		t.Fatalf("(1) Expected %f, got %v", 12345.1234, vals[1])
+	}
+	if vals[2].(float64) != 12.1 {
+		t.Fatalf("(2) Expected %f, got %v", 12.1, vals[2])
+	}
+
+	if err = cursor.Fetch(&vals); err != nil {
+		t.Fatalf("Error in fetch: %s", err)
+	}
+	if vals[0].(float64) != 12345.12 {
+		t.Fatalf("(0) Expected %f, got %v", 12345.12, vals[0])
+	}
+	if vals[1].(float64) != 12345.1234 {
+		t.Fatalf("(1) Expected %f, got %v", 12345.1234, vals[1])
+	}
+	if vals[2].(float64) != 12.1 {
+		t.Fatalf("(2) Expected %f, got %v", 12.1, vals[2])
+	}
+}
+
+// TODO: "DT",   "TM"
+//       "DATE", "TIME"
 
 /*
   Database.create(@parms) do |connection|
@@ -485,13 +545,7 @@ func TestInsertNumeric(t *testing.T) {
     cols.size.times do |i|
       sql_insert = "INSERT INTO TEST_#{cols[i]} (VAL) VALUES (?);"
       sql_select = "SELECT * FROM TEST_#{cols[i]};"
-      if cols[i] == 'BI'
-        connection.execute(sql_insert, 5_000_000_000)
-        connection.execute(sql_insert, "5_000_000_000")
-        vals = connection.query(sql_select)
-        assert_equal 5_000_000_000, vals[0][0]
-        assert_equal 5_000_000_000, vals[1][0]
-      elsif cols[i] == 'DT'
+      if cols[i] == 'DT'
         connection.execute(sql_insert, Date.civil(2000,2,2))
         connection.execute(sql_insert, "2000/2/2")
         connection.execute(sql_insert, "2000-2-2")
@@ -505,27 +559,6 @@ func TestInsertNumeric(t *testing.T) {
         vals = connection.query(sql_select)
         assert_equal Time.utc(2000,1,1,2,22,22), vals[0][0]
         assert_equal Time.utc(2000,1,1,2,22,22), vals[1][0]
-      elsif cols[i] == 'N92'
-        connection.execute(sql_insert, 12345.12)
-        connection.execute(sql_insert, "12345.12")
-        vals = connection.query(sql_select)
-        # puts vals.inspect
-        assert_equal 12345.12, vals[0][0], "NUMERIC (decimal)"
-        assert_equal 12345.12, vals[1][0], "NUMERIC (string)"
-      elsif cols[i] == 'D92'
-        connection.execute(sql_insert, 12345.12)
-        connection.execute(sql_insert, "12345.12")
-        vals = connection.query(sql_select)
-        # puts vals.inspect
-        assert_equal 12345.12, vals[0][0], "DECIMAL (decimal)"
-        assert_equal 12345.12, vals[1][0], "DECIMAL (string)"
-      elsif cols[i] == 'N154'
-        connection.execute(sql_insert, 12345.12)
-        connection.execute(sql_insert, "12345.12")
-        vals = connection.query(sql_select)
-        # puts vals.inspect
-        assert_equal 12345.12, vals[0][0], "NUMERIC (decimal)"
-        assert_equal 12345.12, vals[1][0], "NUMERIC (string)"
       end
     end
     connection.drop
