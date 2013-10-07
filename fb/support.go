@@ -7,6 +7,48 @@ import (
 	"time"
 )
 
+func bytesFromIf(v interface{}) (b []byte, err error) {
+	switch v := v.(type) {
+	case []byte:
+		b = v
+	case *[]byte:
+		b = *v
+	case string:
+		b = []byte(v)
+	case *string:
+		b = []byte(*v)
+	case int64:
+		b = strconv.AppendInt(b, v, 10)
+	case *int64:
+		b = strconv.AppendInt(b, *v, 10)
+	case int32:
+		b = strconv.AppendInt(b, int64(v), 10)
+	case *int32:
+		b = strconv.AppendInt(b, int64(*v), 10)
+	case int:
+		b = strconv.AppendInt(b, int64(v), 10)
+	case *int:
+		b = strconv.AppendInt(b, int64(*v), 10)
+	case float64:
+		b = strconv.AppendFloat(b, v, 'f', -1, 64)
+	case *float64:
+		b = strconv.AppendFloat(b, *v, 'f', -1, 64)
+	case float32:
+		b = strconv.AppendFloat(b, float64(v), 'f', -1, 64)
+	case *float32:
+		b = strconv.AppendFloat(b, float64(*v), 'f', -1, 64)
+	case bool:
+		b = strconv.AppendBool(b, v)
+	case *bool:
+		b = strconv.AppendBool(b, *v)
+	case fmt.Stringer:
+		b = []byte(v.String())
+	default:
+		return b, errors.New("[]byte value expected")
+	}
+	return
+}
+
 func float64FromIf(v interface{}) (f float64, err error) {
 	switch d := v.(type) {
 	case float64:
@@ -74,7 +116,7 @@ func int64FromIf(v interface{}) (i int64, err error) {
 const (
 	// Mon Jan 2 15:04:05 -0700 MST 2006
 	timeWithSlashes = "2006/1/2 15:04:05"
-	timeWithDashes = "2006-1-2 15:04:05"
+	timeWithDashes  = "2006-1-2 15:04:05"
 )
 
 func parseUnknownTime(s string, location *time.Location) (t time.Time, err error) {
@@ -113,6 +155,10 @@ func stringFromIf(v interface{}) (s string, err error) {
 		s = strconv.FormatFloat(float64(v), 'f', -1, 64)
 	case *float32:
 		s = strconv.FormatFloat(float64(*v), 'f', -1, 64)
+	case bool:
+		s = strconv.FormatBool(v)
+	case *bool:
+		s = strconv.FormatBool(*v)
 	case fmt.Stringer:
 		s = v.String()
 	default:

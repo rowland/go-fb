@@ -5,6 +5,72 @@ import (
 	"time"
 )
 
+func Test_bytesFromIf(t *testing.T) {
+	var bs []byte = []byte("bytesFromIf test")
+	if v, err := bytesFromIf(bs); err != nil || string(v) != "bytesFromIf test" {
+		t.Errorf("bytesFromIf from []byte failed: got %v, %v", v, err)
+	}
+	if v, err := bytesFromIf(&bs); err != nil || string(v) != "bytesFromIf test" {
+		t.Errorf("bytesFromIf from []byte failed: got %v, %v", v, err)
+	}
+
+	var f64 float64 = 123.456
+	if v, err := bytesFromIf(f64); err != nil || string(v) != "123.456" {
+		t.Errorf("bytesFromIf from float64 failed: got %v, %v", v, err)
+	}
+	if v, err := bytesFromIf(&f64); err != nil || string(v) != "123.456" {
+		t.Errorf("bytesFromIf from float64 failed: got %v, %v", v, err)
+	}
+
+	var f32 float32 = 123.5
+	if v, err := bytesFromIf(f32); err != nil || string(v) != "123.5" {
+		t.Errorf("bytesFromIf from float32 failed: got %v, %v", v, err)
+	}
+	if v, err := bytesFromIf(&f32); err != nil || string(v) != "123.5" {
+		t.Errorf("bytesFromIf from float32 failed: got %v, %v", v, err)
+	}
+
+	var i64 int64 = 123456
+	if v, err := bytesFromIf(i64); err != nil || string(v) != "123456" {
+		t.Errorf("bytesFromIf from int64 failed: got %v, %v", v, err)
+	}
+	if v, err := bytesFromIf(&i64); err != nil || string(v) != "123456" {
+		t.Errorf("bytesFromIf from int64 failed: got %v, %v", v, err)
+	}
+
+	var i32 int32 = 123456
+	if v, err := bytesFromIf(i32); err != nil || string(v) != "123456" {
+		t.Errorf("bytesFromIf from int32 failed: got %v, %v", v, err)
+	}
+	if v, err := bytesFromIf(&i32); err != nil || string(v) != "123456" {
+		t.Errorf("bytesFromIf from int32 failed: got %v, %v", v, err)
+	}
+
+	var i int = 123456
+	if v, err := bytesFromIf(i); err != nil || string(v) != "123456" {
+		t.Errorf("bytesFromIf from int failed: got %v, %v", v, err)
+	}
+	if v, err := bytesFromIf(&i); err != nil || string(v) != "123456" {
+		t.Errorf("bytesFromIf from int failed: got %v, %v", v, err)
+	}
+
+	var s string = "123.456"
+	if v, err := bytesFromIf(s); err != nil || string(v) != "123.456" {
+		t.Errorf("bytesFromIf from string failed: got %v, %v", v, err)
+	}
+	if v, err := bytesFromIf(&s); err != nil || string(v) != "123.456" {
+		t.Errorf("bytesFromIf from string failed: got %v, %v", v, err)
+	}
+
+	var b bool = true
+	if v, err := bytesFromIf(b); err != nil || string(v) != "true" {
+		t.Errorf("bytesFromIf from bool failed: got %v, %v", v, err)
+	}
+	if v, err := bytesFromIf(&b); err != nil || string(v) != "true" {
+		t.Errorf("bytesFromIf from bool failed: got %v, %v", v, err)
+	}
+}
+
 func Test_float64FromIf(t *testing.T) {
 	var f64 float64 = 123.456
 	if v, err := float64FromIf(f64); err != nil || v != 123.456 {
@@ -136,6 +202,14 @@ func Test_stringFromIf(t *testing.T) {
 	}
 	if v, err := stringFromIf(&s); err != nil || v != "123.456" {
 		t.Errorf("stringFromIf from string failed: got %v, %v", v, err)
+	}
+
+	var b bool = true
+	if v, err := stringFromIf(b); err != nil || v != "true" {
+		t.Errorf("stringFromIf from bool failed: got %v, %v", v, err)
+	}
+	if v, err := stringFromIf(&b); err != nil || v != "true" {
+		t.Errorf("stringFromIf from bool failed: got %v, %v", v, err)
 	}
 }
 
