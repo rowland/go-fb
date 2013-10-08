@@ -72,7 +72,7 @@ func (cursor *Cursor) execute(sql string, args ...interface{}) (rowsAffected int
 		// fmt.Printf("rowsAffected: %d\n", rowsAffected)
 		if err != nil {
 			cursor.connection.Rollback()
-		} else if rowsAffected < 0 {
+		} else if !cursor.open {
 			cursor.connection.Commit()
 		}
 	}
@@ -201,7 +201,7 @@ func (cursor *Cursor) execute2(sql string, args ...interface{}) (rowsAffected in
 				return
 			}
 		}
-		rowsAffected = cursor.rowsAffected(statement)
+		rowsAffected, err = cursor.rowsAffected(statement)
 	}
 	return
 }
@@ -729,9 +729,55 @@ func (cursor *Cursor) drop() (err error) {
 	return
 }
 
-func (cursor *Cursor) rowsAffected(statement C.long) int {
-	// TODO: implement
-	return 0
+func (cursor *Cursor) rowsAffected(statementType C.long) (int, error) {
+	inserted := 0
+	selected := 0
+	updated := 0
+	deleted := 0
+	var request = [...]C.ISC_SCHAR { C.isc_info_sql_records }
+	var response [64]C.ISC_SCHAR
+	var isc_status [20]C.ISC_STATUS
+
+	C.isc_dsql_sql_info(
+		&isc_status[0], &cursor.stmt, C.short(unsafe.Sizeof(request)),
+		&request[0], C.short(unsafe.Sizeof(response)), &response[0])
+	if err := fbErrorCheck(&isc_status); err != nil {
+		return 0, err
+	}
+	if response[0] != C.isc_info_sql_records {
+		return -1, nil
+	}
+	var r C.short = 3 // skip past first cluster
+	for response[r] != C.isc_info_end {
+		countType := response[r]
+		r++
+		len := C.short(C.isc_vax_integer(&response[r], C.short(unsafe.Sizeof(r))))
+		r += C.short(unsafe.Sizeof(r))
+		switch countType {
+			case C.isc_info_req_insert_count:
+				inserted = int(C.isc_vax_integer(&response[r], len))
+			case C.isc_info_req_select_count:
+				selected = int(C.isc_vax_integer(&response[r], len))
+			case C.isc_info_req_update_count:
+				updated = int(C.isc_vax_integer(&response[r], len))
+			case C.isc_info_req_delete_count:
+				deleted = int(C.isc_vax_integer(&response[r], len))
+		}
+		r += len
+	}
+	switch (statementType) {
+		case C.isc_info_sql_stmt_select:
+			return selected, nil
+		case C.isc_info_sql_stmt_insert:
+			return inserted, nil
+		case C.isc_info_sql_stmt_update:
+			return updated, nil
+		case C.isc_info_sql_stmt_delete:
+			return deleted, nil
+		default:
+			return inserted + selected + updated + deleted, nil
+	}
+	return 0, nil
 }
 
 var reLowercase = regexp.MustCompile("[a-z]")

@@ -22,23 +22,21 @@ func TestInsertInteger(t *testing.T) {
 	sqlInsert := "INSERT INTO TEST (VAL1, VAL2) VALUES (?, ?);"
 	sqlSelect := "SELECT * FROM TEST;"
 
-	var cursor *Cursor
-
 	if _, err = conn.Execute(sqlSchema); err != nil {
 		t.Fatalf("Error executing schema: %s", err)
 	}
-	conn.Commit()
 
 	if _, err = conn.Execute(sqlInsert, 500000, "500000"); err != nil {
 		t.Fatalf("Error executing insert: %s", err)
 	}
 
-	var vals []interface{}
+	var cursor *Cursor
 	if cursor, err = conn.Execute(sqlSelect); err != nil {
 		t.Fatalf("Unexpected error in select: %s", err)
 	}
 	defer cursor.Close()
 
+	var vals []interface{}
 	if err = cursor.Fetch(&vals); err != nil {
 		t.Fatalf("Error in fetch: %s", err)
 	}
@@ -63,23 +61,21 @@ func TestInsertSmallint(t *testing.T) {
 	sqlInsert := "INSERT INTO TEST (VAL1, VAL2) VALUES (?, ?);"
 	sqlSelect := "SELECT * FROM TEST;"
 
-	var cursor *Cursor
-
 	if _, err = conn.Execute(sqlSchema); err != nil {
 		t.Fatalf("Error executing schema: %s", err)
 	}
-	conn.Commit()
 
 	if _, err = conn.Execute(sqlInsert, 32123, "32123"); err != nil {
 		t.Fatalf("Error executing insert: %s", err)
 	}
 
-	var vals []interface{}
+	var cursor *Cursor
 	if cursor, err = conn.Execute(sqlSelect); err != nil {
 		t.Fatalf("Unexpected error in select: %s", err)
 	}
 	defer cursor.Close()
 
+	var vals []interface{}
 	if err = cursor.Fetch(&vals); err != nil {
 		t.Fatalf("Error in fetch: %s", err)
 	}
@@ -104,23 +100,21 @@ func TestInsertBigint(t *testing.T) {
 	sqlInsert := "INSERT INTO TEST (VAL1, VAL2) VALUES (?, ?);"
 	sqlSelect := "SELECT * FROM TEST;"
 
-	var cursor *Cursor
-
 	if _, err = conn.Execute(sqlSchema); err != nil {
 		t.Fatalf("Error executing schema: %s", err)
 	}
-	conn.Commit()
 
 	if _, err = conn.Execute(sqlInsert, 5000000000, "5000000000"); err != nil {
 		t.Fatalf("Error executing insert: %s", err)
 	}
 
-	var vals []interface{}
+	var cursor *Cursor
 	if cursor, err = conn.Execute(sqlSelect); err != nil {
 		t.Fatalf("Unexpected error in select: %s", err)
 	}
 	defer cursor.Close()
 
+	var vals []interface{}
 	if err = cursor.Fetch(&vals); err != nil {
 		t.Fatalf("Error in fetch: %s", err)
 	}
@@ -145,23 +139,21 @@ func TestInsertFloat(t *testing.T) {
 	sqlInsert := "INSERT INTO TEST (VAL1, VAL2) VALUES (?, ?);"
 	sqlSelect := "SELECT * FROM TEST;"
 
-	var cursor *Cursor
-
 	if _, err = conn.Execute(sqlSchema); err != nil {
 		t.Fatalf("Error executing schema: %s", err)
 	}
-	conn.Commit()
 
 	if _, err = conn.Execute(sqlInsert, 5.75, "5.75"); err != nil {
 		t.Fatalf("Error executing insert: %s", err)
 	}
 
-	var vals []interface{}
+	var cursor *Cursor
 	if cursor, err = conn.Execute(sqlSelect); err != nil {
 		t.Fatalf("Unexpected error in select: %s", err)
 	}
 	defer cursor.Close()
 
+	var vals []interface{}
 	if err = cursor.Fetch(&vals); err != nil {
 		t.Fatalf("Error in fetch: %s", err)
 	}
@@ -186,23 +178,21 @@ func TestInsertDouble(t *testing.T) {
 	sqlInsert := "INSERT INTO TEST (VAL1, VAL2) VALUES (?, ?);"
 	sqlSelect := "SELECT * FROM TEST;"
 
-	var cursor *Cursor
-
 	if _, err = conn.Execute(sqlSchema); err != nil {
 		t.Fatalf("Error executing schema: %s", err)
 	}
-	conn.Commit()
 
 	if _, err = conn.Execute(sqlInsert, 12345.12345, "12345.12345"); err != nil {
 		t.Fatalf("Error executing insert: %s", err)
 	}
 
-	var vals []interface{}
+	var cursor *Cursor
 	if cursor, err = conn.Execute(sqlSelect); err != nil {
 		t.Fatalf("Unexpected error in select: %s", err)
 	}
 	defer cursor.Close()
 
+	var vals []interface{}
 	if err = cursor.Fetch(&vals); err != nil {
 		t.Fatalf("Error in fetch: %s", err)
 	}
@@ -227,12 +217,9 @@ func TestInsertChar(t *testing.T) {
 	sqlInsert := "INSERT INTO TEST (VAL1, VAL10) VALUES (?, ?);"
 	sqlSelect := "SELECT * FROM TEST;"
 
-	var cursor *Cursor
-
 	if _, err = conn.Execute(sqlSchema); err != nil {
 		t.Fatalf("Error executing schema: %s", err)
 	}
-	conn.Commit()
 
 	if _, err = conn.Execute(sqlInsert, "5", "1234567890"); err != nil {
 		t.Fatalf("Error executing insert (1): %s", err)
@@ -241,12 +228,13 @@ func TestInsertChar(t *testing.T) {
 		t.Fatalf("Error executing insert (2): %s", err)
 	}
 
-	var vals []interface{}
+	var cursor *Cursor
 	if cursor, err = conn.Execute(sqlSelect); err != nil {
 		t.Fatalf("Unexpected error in select: %s", err)
 	}
 	defer cursor.Close()
 
+	var vals []interface{}
 	if err = cursor.Fetch(&vals); err != nil {
 		t.Fatalf("Error in fetch: %s", err)
 	}
@@ -281,12 +269,9 @@ func TestInsertVarchar(t *testing.T) {
 	sqlInsert := "INSERT INTO TEST (VAL1, VAL10) VALUES (?, ?);"
 	sqlSelect := "SELECT * FROM TEST;"
 
-	var cursor *Cursor
-
 	if _, err = conn.Execute(sqlSchema); err != nil {
 		t.Fatalf("Error executing schema: %s", err)
 	}
-	conn.Commit()
 
 	if _, err = conn.Execute(sqlInsert, "5", "1234567890"); err != nil {
 		t.Fatalf("Error executing insert (1): %s", err)
@@ -295,12 +280,13 @@ func TestInsertVarchar(t *testing.T) {
 		t.Fatalf("Error executing insert (2): %s", err)
 	}
 
-	var vals []interface{}
+	var cursor *Cursor
 	if cursor, err = conn.Execute(sqlSelect); err != nil {
 		t.Fatalf("Unexpected error in select: %s", err)
 	}
 	defer cursor.Close()
 
+	var vals []interface{}
 	if err = cursor.Fetch(&vals); err != nil {
 		t.Fatalf("Error in fetch: %s", err)
 	}
@@ -335,12 +321,9 @@ func TestInsertVarchar10000(t *testing.T) {
 	sqlInsert := "INSERT INTO TEST (VAL1, VAL2) VALUES (?, ?);"
 	sqlSelect := "SELECT * FROM TEST;"
 
-	var cursor *Cursor
-
 	if _, err = conn.Execute(sqlSchema); err != nil {
 		t.Fatalf("Error executing schema: %s", err)
 	}
-	conn.Commit()
 
 	bs := strings.Repeat("1", 100)
 	bi, _ := new(big.Int).SetString(bs, 10)
@@ -349,12 +332,13 @@ func TestInsertVarchar10000(t *testing.T) {
 		t.Fatalf("Error executing insert: %s", err)
 	}
 
-	var vals []interface{}
+	var cursor *Cursor
 	if cursor, err = conn.Execute(sqlSelect); err != nil {
 		t.Fatalf("Unexpected error in select: %s", err)
 	}
 	defer cursor.Close()
 
+	var vals []interface{}
 	if err = cursor.Fetch(&vals); err != nil {
 		t.Fatalf("Error in fetch: %s", err)
 	}
@@ -379,12 +363,9 @@ func TestInsertTimestamp(t *testing.T) {
 	sqlInsert := "INSERT INTO TEST (VAL1, VAL2, VAL3, VAL4) VALUES (?, ?, ?, '2006/6/6 3:33:33');"
 	sqlSelect := "SELECT * FROM TEST;"
 
-	var cursor *Cursor
-
 	if _, err = conn.Execute(sqlSchema); err != nil {
 		t.Fatalf("Error executing schema: %s", err)
 	}
-	conn.Commit()
 
 	dt := time.Date(2006, 6, 6, 3, 33, 33, 0, conn.Location)
 	dt2 := "2006/6/6 3:33:33"
@@ -394,12 +375,13 @@ func TestInsertTimestamp(t *testing.T) {
 		t.Fatalf("Error executing insert: %s", err)
 	}
 
-	var vals []interface{}
+	var cursor *Cursor
 	if cursor, err = conn.Execute(sqlSelect); err != nil {
 		t.Fatalf("Unexpected error in select: %s", err)
 	}
 	defer cursor.Close()
 
+	var vals []interface{}
 	if err = cursor.Fetch(&vals); err != nil {
 		t.Fatalf("Error in fetch: %s", err)
 	}
@@ -430,12 +412,9 @@ func TestInsertNumeric(t *testing.T) {
 	sqlInsert := "INSERT INTO TEST (VAL1, VAL2, VAL3) VALUES (?, ?, ?);"
 	sqlSelect := "SELECT * FROM TEST;"
 
-	var cursor *Cursor
-
 	if _, err = conn.Execute(sqlSchema); err != nil {
 		t.Fatalf("Error executing schema: %s", err)
 	}
-	conn.Commit()
 
 	if _, err = conn.Execute(sqlInsert, 12345.12, 12345.1234, 12.1); err != nil {
 		t.Fatalf("Error executing insert: %s", err)
@@ -444,12 +423,13 @@ func TestInsertNumeric(t *testing.T) {
 		t.Fatalf("Error executing insert: %s", err)
 	}
 
-	var vals []interface{}
+	var cursor *Cursor
 	if cursor, err = conn.Execute(sqlSelect); err != nil {
 		t.Fatalf("Unexpected error in select: %s", err)
 	}
 	defer cursor.Close()
 
+	var vals []interface{}
 	if err = cursor.Fetch(&vals); err != nil {
 		t.Fatalf("Error in fetch: %s", err)
 	}
@@ -490,12 +470,9 @@ func TestInsertDecimal(t *testing.T) {
 	sqlInsert := "INSERT INTO TEST (VAL1, VAL2, VAL3) VALUES (?, ?, ?);"
 	sqlSelect := "SELECT * FROM TEST;"
 
-	var cursor *Cursor
-
 	if _, err = conn.Execute(sqlSchema); err != nil {
 		t.Fatalf("Error executing schema: %s", err)
 	}
-	conn.Commit()
 
 	if _, err = conn.Execute(sqlInsert, 12345.12, 12345.1234, 12.1); err != nil {
 		t.Fatalf("Error executing insert: %s", err)
@@ -504,12 +481,13 @@ func TestInsertDecimal(t *testing.T) {
 		t.Fatalf("Error executing insert: %s", err)
 	}
 
-	var vals []interface{}
+	var cursor *Cursor
 	if cursor, err = conn.Execute(sqlSelect); err != nil {
 		t.Fatalf("Unexpected error in select: %s", err)
 	}
 	defer cursor.Close()
 
+	var vals []interface{}
 	if err = cursor.Fetch(&vals); err != nil {
 		t.Fatalf("Error in fetch: %s", err)
 	}
@@ -583,7 +561,6 @@ func TestInsertBlob(t *testing.T) {
 	if _, err = conn.Execute(sqlSchema); err != nil {
 		t.Fatalf("Error executing schema: %s", err)
 	}
-	conn.Commit()
 
 	sentence := "The quick red fox jumps over the lazy brown dog.\n"
 	memo := strings.Repeat(sentence, 1000)
@@ -593,10 +570,9 @@ func TestInsertBlob(t *testing.T) {
 			t.Fatalf("Error executing insert: %s", err)
 		}
 	}
-	// if conn.TransactionStarted() {
-	// 	t.Error("Should not be in transaction here.")
-	// }
-	conn.Commit()
+	if conn.TransactionStarted() {
+		t.Error("Should not be in transaction here.")
+	}
 
 	var cursor *Cursor
 	if cursor, err = conn.Execute(sqlSelect); err != nil {
