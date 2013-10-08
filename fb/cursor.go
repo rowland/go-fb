@@ -428,6 +428,19 @@ func (cursor *Cursor) setInputParams(args []interface{}) (err error) {
 				offset += alignment
 				break
 
+			case C.SQL_TYPE_TIME:
+				offset = fbAlign(offset, alignment)
+				ivar.sqldata = (*C.ISC_SCHAR)(unsafe.Pointer(uintptr(unsafe.Pointer(cursor.i_buffer)) + uintptr(offset)))
+				var tvalue time.Time
+				tvalue, err = timeFromIf(arg, cursor.connection.Location)
+				if err != nil {
+					return
+				}
+				isc_ts := iscTimeFromTime(tvalue, cursor.connection.Location)
+				*(*C.ISC_TIME)(unsafe.Pointer(ivar.sqldata)) = isc_ts
+				offset += alignment
+				break
+
 			default:
 				panic("Shouldn't reach here! (dtp not implemented)")
 			}
@@ -500,160 +513,6 @@ static void fb_cursor_set_inputparams(struct FbCursor *fb_cursor, long argc, VAL
 			alignment = var->sqllen;
 
 			switch (dtp) {
-				case SQL_TEXT :
-					alignment = 1;
-					offset = FB_ALIGN(offset, alignment);
-					var->sqldata = (char *)(fb_cursor->i_buffer + offset);
-					obj = rb_obj_as_string(obj);
-					if (RSTRING_LEN(obj) > var->sqllen) {
-						rb_raise(rb_eRangeError, "CHAR overflow: %ld bytes exceeds %d byte(s) allowed.",
-							RSTRING_LEN(obj), var->sqllen);
-					}
-					memcpy(var->sqldata, RSTRING_PTR(obj), RSTRING_LEN(obj));
-					var->sqllen = RSTRING_LEN(obj);
-					offset += var->sqllen + 1;
-					break;
-
-				case SQL_VARYING :
-					alignment = sizeof(short);
-					offset = FB_ALIGN(offset, alignment);
-					var->sqldata = (char *)(fb_cursor->i_buffer + offset);
-					vary = (VARY *)var->sqldata;
-					obj = rb_obj_as_string(obj);
-					if (RSTRING_LEN(obj) > var->sqllen) {
-						rb_raise(rb_eRangeError, "VARCHAR overflow: %ld bytes exceeds %d byte(s) allowed.",
-							RSTRING_LEN(obj), var->sqllen);
-					}
-					memcpy(vary->vary_string, RSTRING_PTR(obj), RSTRING_LEN(obj));
-					vary->vary_length = RSTRING_LEN(obj);
-					offset += vary->vary_length + sizeof(short);
-					break;
-
-				case SQL_SHORT :
-					offset = FB_ALIGN(offset, alignment);
-					var->sqldata = (char *)(fb_cursor->i_buffer + offset);
-					if (var->sqlscale < 0) {
-						ratio = 1;
-						for (scnt = 0; scnt > var->sqlscale; scnt--)
-							ratio *= 10;
-						obj = double_from_obj(obj);
-						dvalue = NUM2DBL(obj) * ratio;
-						lvalue = (ISC_LONG)(dvalue + 0.5);
-					} else {
-						obj = long_from_obj(obj);
-						lvalue = NUM2LONG(obj);
-					}
-					if (lvalue < SHRT_MIN || lvalue > SHRT_MAX) {
-						rb_raise(rb_eRangeError, "short integer overflow");
-					}
-					*(short *)var->sqldata = lvalue;
-					offset += alignment;
-					break;
-
-				case SQL_LONG :
-					offset = FB_ALIGN(offset, alignment);
-					var->sqldata = (char *)(fb_cursor->i_buffer + offset);
-					if (var->sqlscale < 0) {
-						ratio = 1;
-						for (scnt = 0; scnt > var->sqlscale; scnt--)
-							ratio *= 10;
-						obj = double_from_obj(obj);
-						dvalue = NUM2DBL(obj) * ratio;
-						lvalue = (ISC_LONG)(dvalue + 0.5);
-					} else {
-						obj = long_from_obj(obj);
-						lvalue = NUM2LONG(obj);
-					}
-					if (lvalue < -2147483647 || lvalue > 2147483647) {
-                        rb_raise(rb_eRangeError, "integer overflow");
-					}
-					*(ISC_LONG *)var->sqldata = (ISC_LONG)lvalue;
-					offset += alignment;
-					break;
-
-				case SQL_FLOAT :
-					offset = FB_ALIGN(offset, alignment);
-					var->sqldata = (char *)(fb_cursor->i_buffer + offset);
-					obj = double_from_obj(obj);
-					dvalue = NUM2DBL(obj);
-					if (dvalue >= 0.0) {
-						dcheck = dvalue;
-					} else {
-						dcheck = dvalue * -1;
-					}
-					if (dcheck != 0.0 && (dcheck < FLT_MIN || dcheck > FLT_MAX)) {
-						rb_raise(rb_eRangeError, "float overflow");
-					}
-					*(float *)var->sqldata = (float)dvalue;
-					offset += alignment;
-					break;
-
-				case SQL_DOUBLE :
-					offset = FB_ALIGN(offset, alignment);
-					var->sqldata = (char *)(fb_cursor->i_buffer + offset);
-					obj = double_from_obj(obj);
-					dvalue = NUM2DBL(obj);
-					*(double *)var->sqldata = dvalue;
-					offset += alignment;
-					break;
-#if HAVE_LONG_LONG
-				case SQL_INT64 :
-					offset = FB_ALIGN(offset, alignment);
-					var->sqldata = (char *)(fb_cursor->i_buffer + offset);
-
-					if (var->sqlscale < 0) {
-						ratio = 1;
-						for (scnt = 0; scnt > var->sqlscale; scnt--)
-							ratio *= 10;
-						obj = double_from_obj(obj);
-						dvalue = NUM2DBL(obj) * ratio;
-						llvalue = (ISC_INT64)(dvalue + 0.5);
-					} else {
-						obj = ll_from_obj(obj);
-						llvalue = NUM2LL(obj);
-					}
-
-					*(ISC_INT64 *)var->sqldata = llvalue;
-					offset += alignment;
-					break;
-#endif
-				case SQL_BLOB :
-					offset = FB_ALIGN(offset, alignment);
-					var->sqldata = (char *)(fb_cursor->i_buffer + offset);
-					obj = rb_obj_as_string(obj);
-
-					blob_handle = 0;
-					isc_create_blob2(
-						fb_connection->isc_status,&fb_connection->db,&fb_connection->transact,
-						&blob_handle,&blob_id,0,NULL);
-					fb_error_check(fb_connection->isc_status);
-					length = RSTRING_LEN(obj);
-					p = RSTRING_PTR(obj);
-					while (length >= 4096) {
-						isc_put_segment(fb_connection->isc_status,&blob_handle,4096,p);
-						fb_error_check(fb_connection->isc_status);
-						p += 4096;
-						length -= 4096;
-					}
-					if (length) {
-						isc_put_segment(fb_connection->isc_status,&blob_handle,length,p);
-						fb_error_check(fb_connection->isc_status);
-					}
-					isc_close_blob(fb_connection->isc_status,&blob_handle);
-					fb_error_check(fb_connection->isc_status);
-
-					*(ISC_QUAD *)var->sqldata = blob_id;
-					offset += alignment;
-					break;
-
-				case SQL_TIMESTAMP :
-					offset = FB_ALIGN(offset, alignment);
-					var->sqldata = (char *)(fb_cursor->i_buffer + offset);
-					tm_from_timestamp(&tms, obj);
-					isc_encode_timestamp(&tms, (ISC_TIMESTAMP *)var->sqldata);
-					offset += alignment;
-					break;
-
 				case SQL_TYPE_TIME :
 					offset = FB_ALIGN(offset, alignment);
 					var->sqldata = (char *)(fb_cursor->i_buffer + offset);
@@ -1095,7 +954,9 @@ func (cursor *Cursor) Fetch(row interface{}) (err error) {
 			case C.SQL_TIMESTAMP:
 				isc_ts := *(*C.ISC_TIMESTAMP)(unsafe.Pointer(sqlvar.sqldata))
 				val = timeFromTimestamp(isc_ts, cursor.connection.Location)
-				break
+			case C.SQL_TYPE_TIME:
+				tm := *(*C.ISC_TIME)(unsafe.Pointer(sqlvar.sqldata))
+				val = timeFromIscTime(tm, cursor.connection.Location)
 			case C.SQL_BLOB:
 				// fmt.Println("Fetch SQL_BLOB")
 				var blobHandle C.isc_blob_handle = 0
@@ -1133,13 +994,13 @@ func (cursor *Cursor) Fetch(row interface{}) (err error) {
 				}
 				bval := make([]byte, totalLength)
 				for i := 0; numSegments > 0 && err == nil; numSegments-- {
-					p := &bval[i]
-					C.isc_get_segment(&isc_status[0], &blobHandle, &actualSegLen, C.ushort(maxSegment), (*C.ISC_SCHAR)(unsafe.Pointer(p)))
-					err = fbErrorCheck(&isc_status)
+					C.isc_get_segment(
+						&isc_status[0], &blobHandle, &actualSegLen,
+						C.ushort(maxSegment), (*C.ISC_SCHAR)(unsafe.Pointer(&bval[i])))
+					if err = fbErrorCheck(&isc_status); err != nil {
+						return
+					}
 					i += int(actualSegLen)
-				}
-				if err != nil {
-					return
 				}
 				C.isc_close_blob(&isc_status[0], &blobHandle)
 				if err = fbErrorCheck(&isc_status); err != nil {
@@ -1224,61 +1085,6 @@ static VALUE fb_cursor_fetch(struct FbCursor *fb_cursor)
 			 // Set the column value to the result tuple
 
 			switch (dtp) {
-				case SQL_TEXT:
-					val = rb_tainted_str_new(var->sqldata, var->sqllen);
-					break;
-
-				case SQL_VARYING:
-					vary = (VARY*)var->sqldata;
-					val = rb_tainted_str_new(vary->vary_string, vary->vary_length);
-					break;
-
-				case SQL_SHORT:
-					if (var->sqlscale < 0) {
-						ratio = 1;
-						for (scnt = 0; scnt > var->sqlscale; scnt--) ratio *= 10;
-						dval = (double)*(short*)var->sqldata/ratio;
-						val = rb_float_new(dval);
-					} else {
-						val = INT2NUM((long)*(short*)var->sqldata);
-					}
-					break;
-
-				case SQL_LONG:
-					if (var->sqlscale < 0) {
-						ratio = 1;
-						for (scnt = 0; scnt > var->sqlscale; scnt--) ratio *= 10;
-						dval = (double)*(ISC_LONG*)var->sqldata/ratio;
-						val = rb_float_new(dval);
-					} else {
-						val = INT2NUM(*(ISC_LONG*)var->sqldata);
-					}
-					break;
-
-				case SQL_FLOAT:
-					val = rb_float_new((double)*(float*)var->sqldata);
-					break;
-
-				case SQL_DOUBLE:
-					val = rb_float_new(*(double*)var->sqldata);
-					break;
-#if HAVE_LONG_LONG
-				case SQL_INT64:
-        				if (var->sqlscale < 0) {
-        					ratio = 1;
-        					for (scnt = 0; scnt > var->sqlscale; scnt--) ratio *= 10;
-        					dval = (double)*(long*)var->sqldata/ratio;
-        					val = rb_float_new(dval);
-        				} else {
-        					val = LL2NUM(*(LONG_LONG*)var->sqldata);
-        				}
-					break;
-#endif
-				case SQL_TIMESTAMP:
-					isc_decode_timestamp((ISC_TIMESTAMP *)var->sqldata, &tms);
-					val = fb_mktime(&tms, "local");
-					break;
-
 				case SQL_TYPE_TIME:
 					isc_decode_sql_time((ISC_TIME *)var->sqldata, &tms);
 					tms.tm_year = 100;
@@ -1290,46 +1096,6 @@ static VALUE fb_cursor_fetch(struct FbCursor *fb_cursor)
 				case SQL_TYPE_DATE:
 					isc_decode_sql_date((ISC_DATE *)var->sqldata, &tms);
 					val = fb_mkdate(&tms);
-					break;
-
-				case SQL_BLOB:
-					blob_handle = 0;
-					blob_id = *(ISC_QUAD *)var->sqldata;
-					isc_open_blob2(fb_connection->isc_status, &fb_connection->db, &fb_connection->transact, &blob_handle, &blob_id, 0, NULL);
-					fb_error_check(fb_connection->isc_status);
-					isc_blob_info(
-						fb_connection->isc_status, &blob_handle,
-						sizeof(blob_items), blob_items,
-						sizeof(blob_info), blob_info);
-					fb_error_check(fb_connection->isc_status);
-					for (p = blob_info; *p != isc_info_end; p += length) {
-						item = *p++;
-						length = (short) isc_vax_integer(p,2);
-						p += 2;
-						switch (item) {
-							case isc_info_blob_max_segment:
-								max_segment = isc_vax_integer(p,length);
-								break;
-							case isc_info_blob_num_segments:
-								num_segments = isc_vax_integer(p,length);
-								break;
-							case isc_info_blob_total_length:
-								total_length = isc_vax_integer(p,length);
-								break;
-						}
-					}
-					val = rb_tainted_str_new(NULL,total_length);
-					for (p = RSTRING_PTR(val); num_segments > 0; num_segments--, p += actual_seg_len) {
-						isc_get_segment(fb_connection->isc_status, &blob_handle, &actual_seg_len, max_segment, p);
-						fb_error_check(fb_connection->isc_status);
-					}
-					isc_close_blob(fb_connection->isc_status, &blob_handle);
-					fb_error_check(fb_connection->isc_status);
-					break;
-
-				case SQL_ARRAY:
-					rb_warn("ARRAY not supported (yet)");
-					val = Qnil;
 					break;
 
 				default:
@@ -1349,6 +1115,22 @@ const (
 	daysFromModifiedJulianDayToUnixEpoch = 40587 // 17 Nov 1858 to 1 Jan 1970
 	secsFromModifiedJulianDayToUnixEpoch = daysFromModifiedJulianDayToUnixEpoch * secsPerDay
 )
+
+func timeFromIscTime(tm C.ISC_TIME, loc *time.Location) (t time.Time) {
+	unixTimeSecs := int64(tm) / 10000
+	unixFracSecs := int64(tm) % 10000
+	ns := unixFracSecs * 100000
+	unixTime := unixTimeSecs
+	// fmt.Printf("unixTime: %v.%v\n", unixTime, ns)
+	t = time.Unix(unixTime, ns).In(time.UTC)
+	if loc != time.UTC {
+		y, m, d := t.Date()
+		h, n, s := t.Clock()
+		// fmt.Printf("timeFromTimestamp: %v, %v, %v, %v, %v, %v (%v)\n", y, m, d, h, n, s, loc)
+		t = time.Date(y, m, d, h, n, s, t.Nanosecond(), loc)
+	}
+	return
+}
 
 func timeFromTimestamp(ts C.ISC_TIMESTAMP, loc *time.Location) (t time.Time) {
 	unixDaySecs := (int64(ts.timestamp_date) * secsPerDay) - secsFromModifiedJulianDayToUnixEpoch
@@ -1378,5 +1160,18 @@ func timestampFromTime(t time.Time, loc *time.Location) (ts C.ISC_TIMESTAMP) {
 	// fmt.Printf("unix time: %v, unix_days: %v, unix_secs: %v\n", t.Unix(), unix_days, unix_secs)
 	ts.timestamp_date = C.ISC_DATE(unix_days + daysFromModifiedJulianDayToUnixEpoch)
 	ts.timestamp_time = C.ISC_TIME(unix_secs*10000 + int64(t.Nanosecond())/100000)
+	return
+}
+
+func iscTimeFromTime(t time.Time, loc *time.Location) (tm C.ISC_TIME) {
+	if loc != time.UTC {
+		y, m, d := t.Date()
+		h, n, s := t.Clock()
+		t = time.Date(y, m, d, h, n, s, t.Nanosecond(), time.UTC)
+	}
+	// unix_days := t.Unix() / secsPerDay
+	unix_secs := t.Unix() % secsPerDay
+	// fmt.Printf("unix time: %v, unix_days: %v, unix_secs: %v\n", t.Unix(), unix_days, unix_secs)
+	tm = C.ISC_TIME(unix_secs*10000 + int64(t.Nanosecond())/100000)
 	return
 }

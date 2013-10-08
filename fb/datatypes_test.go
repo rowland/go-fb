@@ -399,6 +399,51 @@ func TestInsertTimestamp(t *testing.T) {
 	}
 }
 
+func TestInsertTime(t *testing.T) {
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	sqlSchema := "CREATE TABLE TEST (VAL1 TIME, VAL2 TIME, VAL3 TIME);"
+	sqlInsert := "INSERT INTO TEST (VAL1, VAL2, VAL3) VALUES (?, ?, '3:33:33');"
+	sqlSelect := "SELECT * FROM TEST;"
+
+	if _, err = conn.Execute(sqlSchema); err != nil {
+		t.Fatalf("Error executing schema: %s", err)
+	}
+
+	dt := time.Date(1970, 1, 1, 3, 33, 33, 0, conn.Location)
+	dt2 := "3:33:33"
+
+	if _, err = conn.Execute(sqlInsert, dt, dt2); err != nil {
+		t.Fatalf("Error executing insert: %s", err)
+	}
+
+	var cursor *Cursor
+	if cursor, err = conn.Execute(sqlSelect); err != nil {
+		t.Fatalf("Unexpected error in select: %s", err)
+	}
+	defer cursor.Close()
+
+	var vals []interface{}
+	if err = cursor.Fetch(&vals); err != nil {
+		t.Fatalf("Error in fetch: %s", err)
+	}
+	if !vals[0].(time.Time).Equal(dt) {
+		t.Fatalf("(0) Expected %s, got %s", dt, vals[0])
+	}
+	if !vals[1].(time.Time).Equal(dt) {
+		t.Fatalf("(1) Expected %s, got %s", dt, vals[1])
+	}
+	if !vals[2].(time.Time).Equal(dt) {
+		t.Fatalf("(2) Expected %s, got %s", dt, vals[2])
+	}
+}
+
 func TestInsertNumeric(t *testing.T) {
 	os.Remove(TestFilename)
 

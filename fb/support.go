@@ -126,6 +126,9 @@ func parseUnknownTime(s string, location *time.Location) (t time.Time, err error
 	if t, err = time.ParseInLocation(timeWithDashes, s, location); err == nil {
 		return
 	}
+	if t, err = time.ParseInLocation(timeWithDashes, "1970-1-1 "+s, location); err == nil {
+		return
+	}
 	return time.Time{}, err
 }
 
