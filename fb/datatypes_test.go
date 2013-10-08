@@ -3,6 +3,7 @@ package fb
 import (
 	"math/big"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -565,3 +566,61 @@ func TestInsertDecimal(t *testing.T) {
   end
 end
 */
+
+func TestInsertBlob(t *testing.T) {
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	sqlSchema := "CREATE TABLE TEST (ID INT, NAME VARCHAR(20), MEMO BLOB SUB_TYPE TEXT, BINARY BLOB)"
+	sqlInsert := "INSERT INTO TEST (ID, NAME, MEMO, BINARY) VALUES (?, ?, ?, ?)"
+	sqlSelect := "SELECT * FROM TEST ORDER BY ID"
+
+	if _, err = conn.Execute(sqlSchema); err != nil {
+		t.Fatalf("Error executing schema: %s", err)
+	}
+	conn.Commit()
+
+	sentence := "The quick red fox jumps over the lazy brown dog.\n"
+	memo := strings.Repeat(sentence, 1000)
+
+	for id := 0; id < 5; id++ {
+		if _, err = conn.Execute(sqlInsert, id, strconv.Itoa(id), memo, memo); err != nil {
+			t.Fatalf("Error executing insert: %s", err)
+		}
+	}
+	// if conn.TransactionStarted() {
+	// 	t.Error("Should not be in transaction here.")
+	// }
+	conn.Commit()
+
+	var cursor *Cursor
+	if cursor, err = conn.Execute(sqlSelect); err != nil {
+		t.Fatalf("Unexpected error in select: %s", err)
+	}
+	defer cursor.Close()
+	
+	for id := 0; id < 5; id++ {
+		var vals []interface{}
+		if err = cursor.Fetch(&vals); err != nil {
+			t.Fatalf("Error in fetch: %s", err)
+		}
+		if vals[0].(int32) != int32(id) {
+			t.Fatalf("(0) Expected %d, got %v", id, vals[0])
+		}
+		name := strconv.Itoa(id)
+		if vals[1].(string) != name {
+			t.Fatalf("(1) Expected %s, got %v", name, vals[1])
+		}
+		if vals[2].(string) != memo {
+			t.Fatalf("(2) Expected %s, got %v", memo, vals[2])
+		}
+		if string(vals[3].([]byte)) != memo {
+			t.Fatalf("(3) Expected %s, got %v", memo, vals[3])
+		}
+	}
+}

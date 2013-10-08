@@ -69,6 +69,7 @@ func (cursor *Cursor) execute(sql string, args ...interface{}) (rowsAffected int
 		cursor.connection.transactionStart(nil)
 		cursor.auto_transact = cursor.connection.transact
 		rowsAffected, err = cursor.execute2(sql, args...)
+		// fmt.Printf("rowsAffected: %d\n", rowsAffected)
 		if err != nil {
 			cursor.connection.Rollback()
 		} else if rowsAffected < 0 {
@@ -365,6 +366,53 @@ func (cursor *Cursor) setInputParams(args []interface{}) (err error) {
 					llvalue = C.ISC_INT64(ivalue)
 				}
 				*(*C.ISC_INT64)(unsafe.Pointer(ivar.sqldata)) = llvalue
+				offset += alignment
+
+			case C.SQL_BLOB:
+				offset = fbAlign(offset, alignment)
+				ivar.sqldata = (*C.ISC_SCHAR)(unsafe.Pointer(uintptr(unsafe.Pointer(cursor.i_buffer)) + uintptr(offset)))
+
+				var bs []byte
+				bs, err = bytesFromIf(arg)
+				if err != nil {
+					return
+				}
+
+				var blobHandle C.isc_blob_handle = 0
+				var blobId C.ISC_QUAD
+				var isc_status [20]C.ISC_STATUS
+
+				C.isc_create_blob2(
+					&isc_status[0], &cursor.connection.db, &cursor.connection.transact,
+					&blobHandle, &blobId, 0, (*C.ISC_SCHAR)(nil))
+				if err = fbErrorCheck(&isc_status); err != nil {
+					return
+				}
+				// fmt.Printf("blobId: %v\n", blobId)
+				length := len(bs)
+				// fmt.Printf("len: %d\n", length)
+				i := 0
+				for length >= 4096 && err == nil {
+					// fmt.Printf("blob data from %d - %d\n", i, i + 4096)
+					C.isc_put_segment(&isc_status[0], &blobHandle, 4096, (*C.ISC_SCHAR)(unsafe.Pointer(&bs[i])))
+					err = fbErrorCheck(&isc_status)
+					i += 4096
+					length -= 4096
+				}
+				if length > 0 && err == nil {
+					// fmt.Printf("blob data from %d - %d\n", i, i + length)
+					C.isc_put_segment(&isc_status[0], &blobHandle, C.ushort(length), (*C.ISC_SCHAR)(unsafe.Pointer(&bs[i])))
+					err = fbErrorCheck(&isc_status)
+				}
+				if err != nil {
+					return
+				}
+				C.isc_close_blob(&isc_status[0], &blobHandle)
+				if err = fbErrorCheck(&isc_status); err != nil {
+					return
+				}
+
+				*(*C.ISC_QUAD)(unsafe.Pointer(ivar.sqldata)) = blobId
 				offset += alignment
 
 			case C.SQL_TIMESTAMP:
@@ -918,6 +966,12 @@ func (cursor *Cursor) prep() (err error) {
 	return
 }
 
+var blobItemsFetch = [...]C.ISC_SCHAR{
+	C.isc_info_blob_max_segment,
+	C.isc_info_blob_num_segments,
+	C.isc_info_blob_total_length,
+}
+
 func (cursor *Cursor) Fetch(row interface{}) (err error) {
 	const SQLCODE_NOMORE = 100
 	var isc_status [20]C.ISC_STATUS
@@ -996,6 +1050,60 @@ func (cursor *Cursor) Fetch(row interface{}) (err error) {
 				isc_ts := *(*C.ISC_TIMESTAMP)(unsafe.Pointer(sqlvar.sqldata))
 				val = timeFromTimestamp(isc_ts, cursor.connection.Location)
 				break
+			case C.SQL_BLOB:
+				// fmt.Println("Fetch SQL_BLOB")
+				var blobHandle C.isc_blob_handle = 0
+				var blobID C.ISC_QUAD = *(*C.ISC_QUAD)(unsafe.Pointer(sqlvar.sqldata))
+				C.isc_open_blob2(&isc_status[0], &cursor.connection.db, &cursor.connection.transact, &blobHandle, &blobID, 0, (*C.ISC_UCHAR)(nil))
+				if err = fbErrorCheck(&isc_status); err != nil {
+					return
+				}
+				var blobInfo [32]C.ISC_SCHAR
+				C.isc_blob_info(
+					&isc_status[0], &blobHandle,
+					C.short(unsafe.Sizeof(blobItemsFetch)), &blobItemsFetch[0],
+					C.short(unsafe.Sizeof(blobInfo)), &blobInfo[0])
+				if err = fbErrorCheck(&isc_status); err != nil {
+					return
+				}
+				var length C.short
+				var maxSegment C.ISC_LONG = 0
+				var numSegments C.ISC_LONG = 0
+				var totalLength C.ISC_LONG = 0
+				var actualSegLen C.ushort
+				for i := 0; blobInfo[i] != C.isc_info_end; i += int(length) {
+					item := blobInfo[i]
+					i += 1
+					length = C.short(C.isc_vax_integer(&blobInfo[i], 2))
+					i += 2
+					switch item {
+					case C.isc_info_blob_max_segment:
+						maxSegment = C.isc_vax_integer(&blobInfo[i], length)
+					case C.isc_info_blob_num_segments:
+						numSegments = C.isc_vax_integer(&blobInfo[i], length)
+					case C.isc_info_blob_total_length:
+						totalLength = C.isc_vax_integer(&blobInfo[i], length)
+					}
+				}
+				bval := make([]byte, totalLength)
+				for i := 0; numSegments > 0 && err == nil; numSegments-- {
+					p := &bval[i]
+					C.isc_get_segment(&isc_status[0], &blobHandle, &actualSegLen, C.ushort(maxSegment), (*C.ISC_SCHAR)(unsafe.Pointer(p)))
+					err = fbErrorCheck(&isc_status)
+					i += int(actualSegLen)
+				}
+				if err != nil {
+					return
+				}
+				C.isc_close_blob(&isc_status[0], &blobHandle)
+				if err = fbErrorCheck(&isc_status); err != nil {
+					return
+				}
+				if cursor.Fields[count].SqlSubtype == 1 {
+					val = string(bval)
+				} else {
+					val = bval
+				}
 			}
 		}
 		ary[count] = val
