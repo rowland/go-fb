@@ -399,6 +399,55 @@ func TestInsertTimestamp(t *testing.T) {
 	}
 }
 
+func TestInsertDate(t *testing.T) {
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	sqlSchema := "CREATE TABLE TEST (VAL1 DATE, VAL2 DATE, VAL3 DATE, VAL4 DATE);"
+	sqlInsert := "INSERT INTO TEST (VAL1, VAL2, VAL3, VAL4) VALUES (?, ?, ?, '2006/6/6');"
+	sqlSelect := "SELECT * FROM TEST;"
+
+	if _, err = conn.Execute(sqlSchema); err != nil {
+		t.Fatalf("Error executing schema: %s", err)
+	}
+
+	dt := time.Date(2006, 6, 6, 0, 0, 0, 0, conn.Location)
+	dt2 := "2006/6/6"
+	dt3 := "2006-6-6"
+
+	if _, err = conn.Execute(sqlInsert, dt, dt2, dt3); err != nil {
+		t.Fatalf("Error executing insert: %s", err)
+	}
+
+	var cursor *Cursor
+	if cursor, err = conn.Execute(sqlSelect); err != nil {
+		t.Fatalf("Unexpected error in select: %s", err)
+	}
+	defer cursor.Close()
+
+	var vals []interface{}
+	if err = cursor.Fetch(&vals); err != nil {
+		t.Fatalf("Error in fetch: %s", err)
+	}
+	if !vals[0].(time.Time).Equal(dt) {
+		t.Fatalf("(0) Expected %s, got %s", dt, vals[0])
+	}
+	if !vals[1].(time.Time).Equal(dt) {
+		t.Fatalf("(1) Expected %s, got %s", dt, vals[1])
+	}
+	if !vals[2].(time.Time).Equal(dt) {
+		t.Fatalf("(2) Expected %s, got %s", dt, vals[2])
+	}
+	if !vals[3].(time.Time).Equal(dt) {
+		t.Fatalf("(3) Expected %s, got %s", dt, vals[3])
+	}
+}
+
 func TestInsertTime(t *testing.T) {
 	os.Remove(TestFilename)
 
@@ -560,36 +609,6 @@ func TestInsertDecimal(t *testing.T) {
 	}
 }
 
-// TODO: "DT",   "TM"
-//       "DATE", "TIME"
-
-/*
-  Database.create(@parms) do |connection|
-    connection.execute_script(sql_schema)
-    cols.size.times do |i|
-      sql_insert = "INSERT INTO TEST_#{cols[i]} (VAL) VALUES (?);"
-      sql_select = "SELECT * FROM TEST_#{cols[i]};"
-      if cols[i] == 'DT'
-        connection.execute(sql_insert, Date.civil(2000,2,2))
-        connection.execute(sql_insert, "2000/2/2")
-        connection.execute(sql_insert, "2000-2-2")
-        vals = connection.query(sql_select)
-        assert_equal Date.civil(2000,2,2), vals[0][0]
-        assert_equal Date.civil(2000,2,2), vals[1][0]
-      elsif cols[i] == 'TM'
-        connection.execute(sql_insert, Time.utc(2000,1,1,2,22,22))
-        connection.execute(sql_insert, "2000/1/1 2:22:22")
-        connection.execute(sql_insert, "2000-1-1 2:22:22")
-        vals = connection.query(sql_select)
-        assert_equal Time.utc(2000,1,1,2,22,22), vals[0][0]
-        assert_equal Time.utc(2000,1,1,2,22,22), vals[1][0]
-      end
-    end
-    connection.drop
-  end
-end
-*/
-
 func TestInsertBlob(t *testing.T) {
 	os.Remove(TestFilename)
 
@@ -624,7 +643,7 @@ func TestInsertBlob(t *testing.T) {
 		t.Fatalf("Unexpected error in select: %s", err)
 	}
 	defer cursor.Close()
-	
+
 	for id := 0; id < 5; id++ {
 		var vals []interface{}
 		if err = cursor.Fetch(&vals); err != nil {

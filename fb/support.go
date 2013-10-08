@@ -115,8 +115,10 @@ func int64FromIf(v interface{}) (i int64, err error) {
 
 const (
 	// Mon Jan 2 15:04:05 -0700 MST 2006
-	timeWithSlashes = "2006/1/2 15:04:05"
+	dateWithDashes  = "2006-1-2"
+	dateWithSlashes = "2006/1/2"
 	timeWithDashes  = "2006-1-2 15:04:05"
+	timeWithSlashes = "2006/1/2 15:04:05"
 )
 
 func parseUnknownTime(s string, location *time.Location) (t time.Time, err error) {
@@ -124,6 +126,12 @@ func parseUnknownTime(s string, location *time.Location) (t time.Time, err error
 		return
 	}
 	if t, err = time.ParseInLocation(timeWithDashes, s, location); err == nil {
+		return
+	}
+	if t, err = time.ParseInLocation(dateWithSlashes, s, location); err == nil {
+		return
+	}
+	if t, err = time.ParseInLocation(dateWithDashes, s, location); err == nil {
 		return
 	}
 	if t, err = time.ParseInLocation(timeWithDashes, "1970-1-1 "+s, location); err == nil {

@@ -388,19 +388,15 @@ func (cursor *Cursor) setInputParams(args []interface{}) (err error) {
 				if err = fbErrorCheck(&isc_status); err != nil {
 					return
 				}
-				// fmt.Printf("blobId: %v\n", blobId)
 				length := len(bs)
-				// fmt.Printf("len: %d\n", length)
 				i := 0
 				for length >= 4096 && err == nil {
-					// fmt.Printf("blob data from %d - %d\n", i, i + 4096)
 					C.isc_put_segment(&isc_status[0], &blobHandle, 4096, (*C.ISC_SCHAR)(unsafe.Pointer(&bs[i])))
 					err = fbErrorCheck(&isc_status)
 					i += 4096
 					length -= 4096
 				}
 				if length > 0 && err == nil {
-					// fmt.Printf("blob data from %d - %d\n", i, i + length)
 					C.isc_put_segment(&isc_status[0], &blobHandle, C.ushort(length), (*C.ISC_SCHAR)(unsafe.Pointer(&bs[i])))
 					err = fbErrorCheck(&isc_status)
 				}
@@ -426,7 +422,6 @@ func (cursor *Cursor) setInputParams(args []interface{}) (err error) {
 				isc_ts := timestampFromTime(tvalue, cursor.connection.Location)
 				*(*C.ISC_TIMESTAMP)(unsafe.Pointer(ivar.sqldata)) = isc_ts
 				offset += alignment
-				break
 
 			case C.SQL_TYPE_TIME:
 				offset = fbAlign(offset, alignment)
@@ -439,8 +434,18 @@ func (cursor *Cursor) setInputParams(args []interface{}) (err error) {
 				isc_ts := iscTimeFromTime(tvalue, cursor.connection.Location)
 				*(*C.ISC_TIME)(unsafe.Pointer(ivar.sqldata)) = isc_ts
 				offset += alignment
-				break
 
+			case C.SQL_TYPE_DATE:
+				offset = fbAlign(offset, alignment)
+				ivar.sqldata = (*C.ISC_SCHAR)(unsafe.Pointer(uintptr(unsafe.Pointer(cursor.i_buffer)) + uintptr(offset)))
+				var tvalue time.Time
+				tvalue, err = timeFromIf(arg, cursor.connection.Location)
+				if err != nil {
+					return
+				}
+				isc_ts := timestampFromTime(tvalue, cursor.connection.Location)
+				*(*C.ISC_TIMESTAMP)(unsafe.Pointer(ivar.sqldata)) = isc_ts
+				offset += alignment
 			default:
 				panic("Shouldn't reach here! (dtp not implemented)")
 			}
@@ -464,94 +469,6 @@ func (cursor *Cursor) setInputParams(args []interface{}) (err error) {
 	}
 	return nil
 }
-
-/*
-static void fb_cursor_set_inputparams(struct FbCursor *fb_cursor, long argc, VALUE *argv)
-{
-	struct FbConnection *fb_connection;
-	long count;
-	long offset;
-	long type;
-	short dtp;
-	VALUE obj;
-	long lvalue;
-	ISC_INT64 llvalue;
-	long alignment;
-	double ratio;
-	double dvalue;
-	long scnt;
-	double dcheck;
-	VARY *vary;
-	XSQLVAR *var;
-
-	isc_blob_handle blob_handle;
-	ISC_QUAD blob_id;
-	 // static char blob_items[] = { isc_info_blob_max_segment };
-	 // char blob_info[16];
-	char *p;
-	long length;
-	 // struct time_object *tobj;
-	struct tm tms;
-
-	Data_Get_Struct(fb_cursor->connection, struct FbConnection, fb_connection);
-
-	 // Check the number of parameters
-	if (fb_cursor->i_sqlda->sqld != argc) {
-		rb_raise(rb_eFbError, "statement requires %d items; %ld given", fb_cursor->i_sqlda->sqld, argc);
-	}
-
-	 // Get the parameters
-	for (count = 0,offset = 0; count < argc; count++) {
-		obj = argv[count];
-
-		type = TYPE(obj);
-
-		 // Convert the data type for InterBase
-		var = &fb_cursor->i_sqlda->sqlvar[count];
-		if (!NIL_P(obj)) {
-			dtp = var->sqltype & ~1;	// Erase null flag
-			alignment = var->sqllen;
-
-			switch (dtp) {
-				case SQL_TYPE_TIME :
-					offset = FB_ALIGN(offset, alignment);
-					var->sqldata = (char *)(fb_cursor->i_buffer + offset);
-					tm_from_timestamp(&tms, obj);
-					isc_encode_sql_time(&tms, (ISC_TIME *)var->sqldata);
-					offset += alignment;
-					break;
-
-				case SQL_TYPE_DATE :
-					offset = FB_ALIGN(offset, alignment);
-					var->sqldata = (char *)(fb_cursor->i_buffer + offset);
-					tm_from_date(&tms, obj);
-					isc_encode_sql_date(&tms, (ISC_DATE *)var->sqldata);
-					offset += alignment;
-					break;
-
-
-				default :
-					rb_raise(rb_eFbError, "Specified table includes unsupported datatype (%d)", dtp);
-			}
-
-			if (var->sqltype & 1) {
-				offset = FB_ALIGN(offset, sizeof(short));
-				var->sqlind = (short *)(fb_cursor->i_buffer + offset);
-				*var->sqlind = 0;
-				offset += sizeof(short);
-			}
-		} else if (var->sqltype & 1) {
-			var->sqldata = 0;
-			offset = FB_ALIGN(offset, sizeof(short));
-			var->sqlind = (short *)(fb_cursor->i_buffer + offset);
-			*var->sqlind = -1;
-			offset += sizeof(short);
-		} else {
-			rb_raise(rb_eFbError, "specified column is not permitted to be null");
-		}
-	}
-}
-*/
 
 func (cursor *Cursor) executeWithParams(args []interface{}) (err error) {
 	var isc_status [20]C.ISC_STATUS
@@ -593,7 +510,7 @@ func (cursor *Cursor) rowsAffected(statementType C.long) (int, error) {
 	selected := 0
 	updated := 0
 	deleted := 0
-	var request = [...]C.ISC_SCHAR { C.isc_info_sql_records }
+	var request = [...]C.ISC_SCHAR{C.isc_info_sql_records}
 	var response [64]C.ISC_SCHAR
 	var isc_status [20]C.ISC_STATUS
 
@@ -613,28 +530,28 @@ func (cursor *Cursor) rowsAffected(statementType C.long) (int, error) {
 		len := C.short(C.isc_vax_integer(&response[r], C.short(unsafe.Sizeof(r))))
 		r += C.short(unsafe.Sizeof(r))
 		switch countType {
-			case C.isc_info_req_insert_count:
-				inserted = int(C.isc_vax_integer(&response[r], len))
-			case C.isc_info_req_select_count:
-				selected = int(C.isc_vax_integer(&response[r], len))
-			case C.isc_info_req_update_count:
-				updated = int(C.isc_vax_integer(&response[r], len))
-			case C.isc_info_req_delete_count:
-				deleted = int(C.isc_vax_integer(&response[r], len))
+		case C.isc_info_req_insert_count:
+			inserted = int(C.isc_vax_integer(&response[r], len))
+		case C.isc_info_req_select_count:
+			selected = int(C.isc_vax_integer(&response[r], len))
+		case C.isc_info_req_update_count:
+			updated = int(C.isc_vax_integer(&response[r], len))
+		case C.isc_info_req_delete_count:
+			deleted = int(C.isc_vax_integer(&response[r], len))
 		}
 		r += len
 	}
-	switch (statementType) {
-		case C.isc_info_sql_stmt_select:
-			return selected, nil
-		case C.isc_info_sql_stmt_insert:
-			return inserted, nil
-		case C.isc_info_sql_stmt_update:
-			return updated, nil
-		case C.isc_info_sql_stmt_delete:
-			return deleted, nil
-		default:
-			return inserted + selected + updated + deleted, nil
+	switch statementType {
+	case C.isc_info_sql_stmt_select:
+		return selected, nil
+	case C.isc_info_sql_stmt_insert:
+		return inserted, nil
+	case C.isc_info_sql_stmt_update:
+		return updated, nil
+	case C.isc_info_sql_stmt_delete:
+		return deleted, nil
+	default:
+		return inserted + selected + updated + deleted, nil
 	}
 	return 0, nil
 }
@@ -957,6 +874,9 @@ func (cursor *Cursor) Fetch(row interface{}) (err error) {
 			case C.SQL_TYPE_TIME:
 				tm := *(*C.ISC_TIME)(unsafe.Pointer(sqlvar.sqldata))
 				val = timeFromIscTime(tm, cursor.connection.Location)
+			case C.SQL_TYPE_DATE:
+				isc_dt := *(*C.ISC_DATE)(unsafe.Pointer(sqlvar.sqldata))
+				val = timeFromIscDate(isc_dt, cursor.connection.Location)
 			case C.SQL_BLOB:
 				// fmt.Println("Fetch SQL_BLOB")
 				var blobHandle C.isc_blob_handle = 0
@@ -1024,92 +944,6 @@ func (cursor *Cursor) Fetch(row interface{}) (err error) {
 	return
 }
 
-/*
-static VALUE fb_cursor_fetch(struct FbCursor *fb_cursor)
-{
-	struct FbConnection *fb_connection;
-	long cols;
-	VALUE ary;
-	long count;
-	XSQLVAR *var;
-	long dtp;
-	VALUE val;
-	VARY *vary;
-	double ratio;
-	double dval;
-	long scnt;
-	struct tm tms;
-
-	isc_blob_handle blob_handle;
-	ISC_QUAD blob_id;
-	unsigned short actual_seg_len;
-	static char blob_items[] = {
-		isc_info_blob_max_segment,
-		isc_info_blob_num_segments,
-		isc_info_blob_total_length
-	};
-	char blob_info[32];
-	char *p, item;
-	short length;
-	unsigned short max_segment = 0;
-	ISC_LONG num_segments = 0;
-	ISC_LONG total_length = 0;
-
-	Data_Get_Struct(fb_cursor->connection, struct FbConnection, fb_connection);
-	fb_connection_check(fb_connection);
-
-	if (fb_cursor->eof) {
-		rb_raise(rb_eFbError, "Cursor is past end of data.");
-	}
-	 // Fetch one row
-	if (isc_dsql_fetch(fb_connection->isc_status, &fb_cursor->stmt, 1, fb_cursor->o_sqlda) == SQLCODE_NOMORE) {
-		fb_cursor->eof = Qtrue;
-		return Qnil;
-	}
-	fb_error_check(fb_connection->isc_status);
-
-	 // Create the result tuple object
-	cols = fb_cursor->o_sqlda->sqld;
-	ary = rb_ary_new2(cols);
-
-	 // Create the result objects for each columns
-	for (count = 0; count < cols; count++) {
-		var = &fb_cursor->o_sqlda->sqlvar[count];
-		dtp = var->sqltype & ~1;
-
-		 // Check if column is null
-
-		if ((var->sqltype & 1) && (*var->sqlind < 0)) {
-			val = Qnil;
-		} else {
-			 // Set the column value to the result tuple
-
-			switch (dtp) {
-				case SQL_TYPE_TIME:
-					isc_decode_sql_time((ISC_TIME *)var->sqldata, &tms);
-					tms.tm_year = 100;
-					tms.tm_mon = 0;
-					tms.tm_mday = 1;
-					val = fb_mktime(&tms, "utc");
-					break;
-
-				case SQL_TYPE_DATE:
-					isc_decode_sql_date((ISC_DATE *)var->sqldata, &tms);
-					val = fb_mkdate(&tms);
-					break;
-
-				default:
-					rb_raise(rb_eFbError, "Specified table includes unsupported datatype (%ld)", dtp);
-					break;
-			}
-		}
-		rb_ary_push(ary, val);
-	}
-
-	return ary;
-}
-*/
-
 const (
 	secsPerDay                           = 24 * 60 * 60
 	daysFromModifiedJulianDayToUnixEpoch = 40587 // 17 Nov 1858 to 1 Jan 1970
@@ -1121,12 +955,22 @@ func timeFromIscTime(tm C.ISC_TIME, loc *time.Location) (t time.Time) {
 	unixFracSecs := int64(tm) % 10000
 	ns := unixFracSecs * 100000
 	unixTime := unixTimeSecs
-	// fmt.Printf("unixTime: %v.%v\n", unixTime, ns)
 	t = time.Unix(unixTime, ns).In(time.UTC)
 	if loc != time.UTC {
 		y, m, d := t.Date()
 		h, n, s := t.Clock()
-		// fmt.Printf("timeFromTimestamp: %v, %v, %v, %v, %v, %v (%v)\n", y, m, d, h, n, s, loc)
+		t = time.Date(y, m, d, h, n, s, t.Nanosecond(), loc)
+	}
+	return
+}
+
+func timeFromIscDate(dt C.ISC_DATE, loc *time.Location) (t time.Time) {
+	unixDaySecs := (int64(dt) * secsPerDay) - secsFromModifiedJulianDayToUnixEpoch
+	unixTime := unixDaySecs
+	t = time.Unix(unixTime, 0).In(time.UTC)
+	if loc != time.UTC {
+		y, m, d := t.Date()
+		h, n, s := t.Clock()
 		t = time.Date(y, m, d, h, n, s, t.Nanosecond(), loc)
 	}
 	return
@@ -1138,12 +982,10 @@ func timeFromTimestamp(ts C.ISC_TIMESTAMP, loc *time.Location) (t time.Time) {
 	unixFracSecs := int64(ts.timestamp_time) % 10000
 	ns := unixFracSecs * 100000
 	unixTime := unixDaySecs + unixTimeSecs
-	// fmt.Printf("unixTime: %v.%v\n", unixTime, ns)
 	t = time.Unix(unixTime, ns).In(time.UTC)
 	if loc != time.UTC {
 		y, m, d := t.Date()
 		h, n, s := t.Clock()
-		// fmt.Printf("timeFromTimestamp: %v, %v, %v, %v, %v, %v (%v)\n", y, m, d, h, n, s, loc)
 		t = time.Date(y, m, d, h, n, s, t.Nanosecond(), loc)
 	}
 	return
@@ -1157,7 +999,6 @@ func timestampFromTime(t time.Time, loc *time.Location) (ts C.ISC_TIMESTAMP) {
 	}
 	unix_days := t.Unix() / secsPerDay
 	unix_secs := t.Unix() % secsPerDay
-	// fmt.Printf("unix time: %v, unix_days: %v, unix_secs: %v\n", t.Unix(), unix_days, unix_secs)
 	ts.timestamp_date = C.ISC_DATE(unix_days + daysFromModifiedJulianDayToUnixEpoch)
 	ts.timestamp_time = C.ISC_TIME(unix_secs*10000 + int64(t.Nanosecond())/100000)
 	return
@@ -1169,9 +1010,7 @@ func iscTimeFromTime(t time.Time, loc *time.Location) (tm C.ISC_TIME) {
 		h, n, s := t.Clock()
 		t = time.Date(y, m, d, h, n, s, t.Nanosecond(), time.UTC)
 	}
-	// unix_days := t.Unix() / secsPerDay
 	unix_secs := t.Unix() % secsPerDay
-	// fmt.Printf("unix time: %v, unix_days: %v, unix_secs: %v\n", t.Unix(), unix_days, unix_secs)
 	tm = C.ISC_TIME(unix_secs*10000 + int64(t.Nanosecond())/100000)
 	return
 }
