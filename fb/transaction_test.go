@@ -2,6 +2,7 @@ package fb
 
 import (
 	"os"
+	"strconv"
 	"testing"
 )
 
@@ -116,5 +117,88 @@ func TestQueryInTransaction(t *testing.T) {
 	}
 	if conn.TransactionStarted() {
 		t.Fatal("Transaction should no longer be open.")
+	}
+}
+
+func TestInsertCommit(t *testing.T) {
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	const sqlSchema = "CREATE TABLE TEST (ID INT, NAME VARCHAR(20))"
+	const sqlInsert = "INSERT INTO TEST (ID, NAME) VALUES (?, ?)"
+	const sqlSelect = "SELECT * FROM TEST ORDER BY ID"
+
+	if _, err = conn.Execute(sqlSchema); err != nil {
+		t.Fatalf("Error executing schema: %s", err)
+	}
+	if err := conn.TransactionStart(""); err != nil {
+		t.Fatalf("Unexpected error starting transaction: %s", err)
+	}
+	for i := 0; i < 10; i++ {
+		conn.Execute(sqlInsert, i, strconv.Itoa(i))
+	}
+	if err := conn.Commit(); err != nil {
+		t.Fatalf("Unexpected error committing transaction: %s", err)
+	}
+	var cursor *Cursor
+	if cursor, err = conn.Execute(sqlSelect); err != nil {
+		t.Fatalf("Unexpected error in select: %s", err)
+	}
+	defer cursor.Close()
+	var vals []interface{}
+	for i := 0; i < 10; i++ {
+		if err = cursor.Fetch(&vals); err != nil {
+			t.Fatalf("Error in fetch: %s", err)
+		}
+		if vals[0].(int32) != int32(i) {
+			t.Fatalf("Expected %d, got %v", i, vals[0])
+		}
+		if vals[1].(string) != strconv.Itoa(i) {
+			t.Fatalf("Expected %s, got %v", strconv.Itoa(i), vals[1])
+		}
+	}
+	if err = cursor.Fetch(&vals); err == nil {
+		t.Fatal("Expected error due to cursor being at end of data.")
+	}
+}
+
+func TestInsertRollback(t *testing.T) {
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	const sqlSchema = "CREATE TABLE TEST (ID INT, NAME VARCHAR(20))"
+	const sqlInsert = "INSERT INTO TEST (ID, NAME) VALUES (?, ?)"
+	const sqlSelect = "SELECT * FROM TEST ORDER BY ID"
+
+	if _, err = conn.Execute(sqlSchema); err != nil {
+		t.Fatalf("Error executing schema: %s", err)
+	}
+	if err := conn.TransactionStart(""); err != nil {
+		t.Fatalf("Unexpected error starting transaction: %s", err)
+	}
+	for i := 0; i < 10; i++ {
+		conn.Execute(sqlInsert, i, strconv.Itoa(i))
+	}
+	if err := conn.Rollback(); err != nil {
+		t.Fatalf("Unexpected error rolling back transaction: %s", err)
+	}
+	var cursor *Cursor
+	if cursor, err = conn.Execute(sqlSelect); err != nil {
+		t.Fatalf("Unexpected error in select: %s", err)
+	}
+	defer cursor.Close()
+	var vals []interface{}
+	if err = cursor.Fetch(&vals); err == nil {
+		t.Fatal("Expected error due to cursor being at end of data.")
 	}
 }
