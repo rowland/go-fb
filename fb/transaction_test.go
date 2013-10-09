@@ -150,11 +150,11 @@ func TestInsertCommit(t *testing.T) {
 		t.Fatalf("Unexpected error in select: %s", err)
 	}
 	defer cursor.Close()
-	var vals []interface{}
 	for i := 0; i < 10; i++ {
-		if err = cursor.Fetch(&vals); err != nil {
-			t.Fatalf("Error in fetch: %s", err)
+		if !cursor.Next() {
+			t.Fatalf("Error in fetch: %s", cursor.Err())
 		}
+		vals := cursor.Row()
 		if vals[0].(int32) != int32(i) {
 			t.Fatalf("Expected %d, got %v", i, vals[0])
 		}
@@ -162,7 +162,7 @@ func TestInsertCommit(t *testing.T) {
 			t.Fatalf("Expected %s, got %v", strconv.Itoa(i), vals[1])
 		}
 	}
-	if err = cursor.Fetch(&vals); err == nil {
+	if cursor.Next() {
 		t.Fatal("Expected error due to cursor being at end of data.")
 	}
 }
@@ -197,8 +197,7 @@ func TestInsertRollback(t *testing.T) {
 		t.Fatalf("Unexpected error in select: %s", err)
 	}
 	defer cursor.Close()
-	var vals []interface{}
-	if err = cursor.Fetch(&vals); err == nil {
+	if cursor.Next() {
 		t.Fatal("Expected error due to cursor being at end of data.")
 	}
 }

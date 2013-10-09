@@ -32,6 +32,8 @@ type Cursor struct {
 	o_buffer_size C.long
 	Fields        []*Field
 	FieldsMap     map[string]*Field
+	err           error
+	row, lastRow  []interface{}
 }
 
 const sqlda_colsinit = 50
@@ -505,10 +507,7 @@ func (cursor *Cursor) drop() (err error) {
 }
 
 func (cursor *Cursor) rowsAffected(statementType C.long) (int, error) {
-	inserted := 0
-	selected := 0
-	updated := 0
-	deleted := 0
+	inserted, selected, updated, deleted := 0, 0, 0, 0
 	var request = [...]C.ISC_SCHAR{C.isc_info_sql_records}
 	var response [64]C.ISC_SCHAR
 	var isc_status [20]C.ISC_STATUS
@@ -663,40 +662,45 @@ func (cursor *Cursor) prep() (err error) {
 	return
 }
 
+func (cursor *Cursor) Err() error {
+	return cursor.err
+}
+
 var blobItemsFetch = [...]C.ISC_SCHAR{
 	C.isc_info_blob_max_segment,
 	C.isc_info_blob_num_segments,
 	C.isc_info_blob_total_length,
 }
 
-func (cursor *Cursor) Fetch(row *[]interface{}) (err error) {
+func (cursor *Cursor) Next() bool {
 	const SQLCODE_NOMORE = 100
 	var isc_status [20]C.ISC_STATUS
 
-	if err = cursor.prep(); err != nil {
-		return
+	if cursor.err = cursor.prep(); cursor.err != nil {
+		return false
 	}
-	if err = cursor.connection.check(); err != nil {
-		return
+	if cursor.err = cursor.connection.check(); cursor.err != nil {
+		return false
 	}
 	if cursor.eof {
-		err = &Error{Message: "Cursor is past end of data."}
-		return
+		cursor.err = &Error{Message: "Cursor is past end of data."}
+		return false
 	}
 	// fetch one row
 	if C.isc_dsql_fetch(&isc_status[0], &cursor.stmt, C.SQLDA_VERSION1, cursor.o_sqlda) == SQLCODE_NOMORE {
 		cursor.eof = true
-		err = io.EOF
-		return
+		cursor.err = io.EOF
+		return false
 	}
-	if err = fbErrorCheck(&isc_status); err != nil {
-		return
+	if cursor.err = fbErrorCheck(&isc_status); cursor.err != nil {
+		return false
 	}
 	// create result tuple
 	cols := cursor.o_sqlda.sqld
-	if len(*row) < int(cols) {
-		*row = make([]interface{}, cols)
+	if len(cursor.row) < int(cols) {
+		cursor.row = make([]interface{}, cols)
 	}
+	cursor.lastRow = nil
 	// set result value for each column
 	for count := C.ISC_SHORT(0); count < cols; count++ {
 		var val interface{}
@@ -759,16 +763,16 @@ func (cursor *Cursor) Fetch(row *[]interface{}) (err error) {
 				var blobHandle C.isc_blob_handle = 0
 				var blobID C.ISC_QUAD = *(*C.ISC_QUAD)(unsafe.Pointer(sqlvar.sqldata))
 				C.isc_open_blob2(&isc_status[0], &cursor.connection.db, &cursor.connection.transact, &blobHandle, &blobID, 0, (*C.ISC_UCHAR)(nil))
-				if err = fbErrorCheck(&isc_status); err != nil {
-					return
+				if cursor.err = fbErrorCheck(&isc_status); cursor.err != nil {
+					return false
 				}
 				var blobInfo [32]C.ISC_SCHAR
 				C.isc_blob_info(
 					&isc_status[0], &blobHandle,
 					C.short(unsafe.Sizeof(blobItemsFetch)), &blobItemsFetch[0],
 					C.short(unsafe.Sizeof(blobInfo)), &blobInfo[0])
-				if err = fbErrorCheck(&isc_status); err != nil {
-					return
+				if cursor.err = fbErrorCheck(&isc_status); cursor.err != nil {
+					return false
 				}
 				var length C.short
 				var maxSegment C.ISC_LONG = 0
@@ -790,18 +794,18 @@ func (cursor *Cursor) Fetch(row *[]interface{}) (err error) {
 					}
 				}
 				bval := make([]byte, totalLength)
-				for i := 0; numSegments > 0 && err == nil; numSegments-- {
+				for i := 0; numSegments > 0; numSegments-- {
 					C.isc_get_segment(
 						&isc_status[0], &blobHandle, &actualSegLen,
 						C.ushort(maxSegment), (*C.ISC_SCHAR)(unsafe.Pointer(&bval[i])))
-					if err = fbErrorCheck(&isc_status); err != nil {
-						return
+					if cursor.err = fbErrorCheck(&isc_status); cursor.err != nil {
+						return false
 					}
 					i += int(actualSegLen)
 				}
 				C.isc_close_blob(&isc_status[0], &blobHandle)
-				if err = fbErrorCheck(&isc_status); err != nil {
-					return
+				if cursor.err = fbErrorCheck(&isc_status); cursor.err != nil {
+					return false
 				}
 				if cursor.Fields[count].SqlSubtype == 1 {
 					val = string(bval)
@@ -810,7 +814,15 @@ func (cursor *Cursor) Fetch(row *[]interface{}) (err error) {
 				}
 			}
 		}
-		(*row)[count] = val
+		cursor.row[count] = val
 	}
-	return
+	return true
+}
+
+func (cursor *Cursor) Row() []interface{} {
+	if cursor.lastRow == nil {
+		cursor.lastRow = make([]interface{}, len(cursor.Fields))
+		copy(cursor.lastRow, cursor.row)
+	}
+	return cursor.lastRow
 }

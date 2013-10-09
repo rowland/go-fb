@@ -36,10 +36,10 @@ func TestInsertInteger(t *testing.T) {
 	}
 	defer cursor.Close()
 
-	var vals []interface{}
-	if err = cursor.Fetch(&vals); err != nil {
-		t.Fatalf("Error in fetch: %s", err)
+	if !cursor.Next() {
+		t.Fatalf("Error in fetch: %s", cursor.Err())
 	}
+	vals := cursor.Row()
 	if vals[0].(int32) != 500000 {
 		t.Errorf("(0) Expected %d, got %d", 500000, vals[0])
 	}
@@ -75,10 +75,10 @@ func TestInsertSmallint(t *testing.T) {
 	}
 	defer cursor.Close()
 
-	var vals []interface{}
-	if err = cursor.Fetch(&vals); err != nil {
-		t.Fatalf("Error in fetch: %s", err)
+	if !cursor.Next() {
+		t.Fatalf("Error in fetch: %s", cursor.Err())
 	}
+	vals := cursor.Row()
 	if vals[0].(int16) != 32123 {
 		t.Fatalf("(0) Expected %d, got %d", 32123, vals[0])
 	}
@@ -114,10 +114,10 @@ func TestInsertBigint(t *testing.T) {
 	}
 	defer cursor.Close()
 
-	var vals []interface{}
-	if err = cursor.Fetch(&vals); err != nil {
-		t.Fatalf("Error in fetch: %s", err)
+	if !cursor.Next() {
+		t.Fatalf("Error in fetch: %s", cursor.Err())
 	}
+	vals := cursor.Row()
 	if vals[0].(int64) != 5000000000 {
 		t.Errorf("(0) Expected %d, got %d", 5000000000, vals[0])
 	}
@@ -153,10 +153,10 @@ func TestInsertFloat(t *testing.T) {
 	}
 	defer cursor.Close()
 
-	var vals []interface{}
-	if err = cursor.Fetch(&vals); err != nil {
-		t.Fatalf("Error in fetch: %s", err)
+	if !cursor.Next() {
+		t.Fatalf("Error in fetch: %s", cursor.Err())
 	}
+	vals := cursor.Row()
 	if vals[0].(float32) != 5.75 {
 		t.Fatalf("(0) Expected %f, got %f", 5.75, vals[0])
 	}
@@ -192,10 +192,10 @@ func TestInsertDouble(t *testing.T) {
 	}
 	defer cursor.Close()
 
-	var vals []interface{}
-	if err = cursor.Fetch(&vals); err != nil {
-		t.Fatalf("Error in fetch: %s", err)
+	if !cursor.Next() {
+		t.Fatalf("Error in fetch: %s", cursor.Err())
 	}
+	vals := cursor.Row()
 	if vals[0].(float64) != 12345.12345 {
 		t.Fatalf("(0) Expected %f, got %f", 12345.12345, vals[0])
 	}
@@ -234,10 +234,10 @@ func TestInsertChar(t *testing.T) {
 	}
 	defer cursor.Close()
 
-	var vals []interface{}
-	if err = cursor.Fetch(&vals); err != nil {
-		t.Fatalf("Error in fetch: %s", err)
+	if !cursor.Next() {
+		t.Fatalf("Error in fetch: %s", cursor.Err())
 	}
+	vals := cursor.Row()
 	if vals[0].(string) != "5" {
 		t.Fatalf("(0) Expected %s, got %s", "5", vals[0])
 	}
@@ -245,9 +245,10 @@ func TestInsertChar(t *testing.T) {
 		t.Fatalf("(1) Expected %s, got %s", "1234567890", vals[1])
 	}
 
-	if err = cursor.Fetch(&vals); err != nil {
-		t.Fatalf("Error in fetch: %s", err)
+	if !cursor.Next() {
+		t.Fatalf("Error in fetch: %s", cursor.Err())
 	}
+	vals = cursor.Row()
 	if vals[0].(string) != "5" {
 		t.Fatalf("(0) Expected %d, got %d", "5", vals[0])
 	}
@@ -286,10 +287,10 @@ func TestInsertVarchar(t *testing.T) {
 	}
 	defer cursor.Close()
 
-	var vals []interface{}
-	if err = cursor.Fetch(&vals); err != nil {
-		t.Fatalf("Error in fetch: %s", err)
+	if !cursor.Next() {
+		t.Fatalf("Error in fetch: %s", cursor.Err())
 	}
+	vals := cursor.Row()
 	if vals[0].(string) != "5" {
 		t.Fatalf("(0) Expected %s, got %s", "5", vals[0])
 	}
@@ -297,9 +298,10 @@ func TestInsertVarchar(t *testing.T) {
 		t.Fatalf("(1) Expected %s, got %s", "1234567890", vals[1])
 	}
 
-	if err = cursor.Fetch(&vals); err != nil {
-		t.Fatalf("Error in fetch: %s", err)
+	if !cursor.Next() {
+		t.Fatalf("Error in fetch: %s", cursor.Err())
 	}
+	vals = cursor.Row()
 	if vals[0].(string) != "5" {
 		t.Fatalf("(0) Expected %d, got %d", "5", vals[0])
 	}
@@ -338,10 +340,10 @@ func TestInsertVarchar10000(t *testing.T) {
 	}
 	defer cursor.Close()
 
-	var vals []interface{}
-	if err = cursor.Fetch(&vals); err != nil {
-		t.Fatalf("Error in fetch: %s", err)
+	if !cursor.Next() {
+		t.Fatalf("Error in fetch: %s", cursor.Err())
 	}
+	vals := cursor.Row()
 	if vals[0].(string) != bs {
 		t.Fatalf("(0) Expected %s, got %s", bs, vals[0])
 	}
@@ -381,10 +383,10 @@ func TestInsertTimestamp(t *testing.T) {
 	}
 	defer cursor.Close()
 
-	var vals []interface{}
-	if err = cursor.Fetch(&vals); err != nil {
-		t.Fatalf("Error in fetch: %s", err)
+	if !cursor.Next() {
+		t.Fatalf("Error in fetch: %s", cursor.Err())
 	}
+	vals := cursor.Row()
 	if !vals[0].(time.Time).Equal(dt) {
 		t.Fatalf("(0) Expected %s, got %s", dt, vals[0])
 	}
@@ -430,10 +432,10 @@ func TestInsertDate(t *testing.T) {
 	}
 	defer cursor.Close()
 
-	var vals []interface{}
-	if err = cursor.Fetch(&vals); err != nil {
-		t.Fatalf("Error in fetch: %s", err)
+	if !cursor.Next() {
+		t.Fatalf("Error in fetch: %s", cursor.Err())
 	}
+	vals := cursor.Row()
 	if !vals[0].(time.Time).Equal(dt) {
 		t.Fatalf("(0) Expected %s, got %s", dt, vals[0])
 	}
@@ -478,10 +480,10 @@ func TestInsertTime(t *testing.T) {
 	}
 	defer cursor.Close()
 
-	var vals []interface{}
-	if err = cursor.Fetch(&vals); err != nil {
-		t.Fatalf("Error in fetch: %s", err)
+	if !cursor.Next() {
+		t.Fatalf("Error in fetch: %s", cursor.Err())
 	}
+	vals := cursor.Row()
 	if !vals[0].(time.Time).Equal(dt) {
 		t.Fatalf("(0) Expected %s, got %s", dt, vals[0])
 	}
@@ -523,10 +525,10 @@ func TestInsertNumeric(t *testing.T) {
 	}
 	defer cursor.Close()
 
-	var vals []interface{}
-	if err = cursor.Fetch(&vals); err != nil {
-		t.Fatalf("Error in fetch: %s", err)
+	if !cursor.Next() {
+		t.Fatalf("Error in fetch: %s", cursor.Err())
 	}
+	vals := cursor.Row()
 	if vals[0].(float64) != 12345.12 {
 		t.Fatalf("(0) Expected %f, got %v", 12345.12, vals[0])
 	}
@@ -537,9 +539,10 @@ func TestInsertNumeric(t *testing.T) {
 		t.Fatalf("(2) Expected %f, got %v", 12.1, vals[2])
 	}
 
-	if err = cursor.Fetch(&vals); err != nil {
-		t.Fatalf("Error in fetch: %s", err)
+	if !cursor.Next() {
+		t.Fatalf("Error in fetch: %s", cursor.Err())
 	}
+	vals = cursor.Row()
 	if vals[0].(float64) != 12345.12 {
 		t.Fatalf("(0) Expected %f, got %v", 12345.12, vals[0])
 	}
@@ -581,10 +584,10 @@ func TestInsertDecimal(t *testing.T) {
 	}
 	defer cursor.Close()
 
-	var vals []interface{}
-	if err = cursor.Fetch(&vals); err != nil {
-		t.Fatalf("Error in fetch: %s", err)
+	if !cursor.Next() {
+		t.Fatalf("Error in fetch: %s", cursor.Err())
 	}
+	vals := cursor.Row()
 	if vals[0].(float64) != 12345.12 {
 		t.Fatalf("(0) Expected %f, got %v", 12345.12, vals[0])
 	}
@@ -595,9 +598,10 @@ func TestInsertDecimal(t *testing.T) {
 		t.Fatalf("(2) Expected %f, got %v", 12.1, vals[2])
 	}
 
-	if err = cursor.Fetch(&vals); err != nil {
-		t.Fatalf("Error in fetch: %s", err)
+	if !cursor.Next() {
+		t.Fatalf("Error in fetch: %s", cursor.Err())
 	}
+	vals = cursor.Row()
 	if vals[0].(float64) != 12345.12 {
 		t.Fatalf("(0) Expected %f, got %v", 12345.12, vals[0])
 	}
@@ -645,10 +649,10 @@ func TestInsertBlob(t *testing.T) {
 	defer cursor.Close()
 
 	for id := 0; id < 5; id++ {
-		var vals []interface{}
-		if err = cursor.Fetch(&vals); err != nil {
-			t.Fatalf("Error in fetch: %s", err)
+		if !cursor.Next() {
+			t.Fatalf("Error in fetch: %s", cursor.Err())
 		}
+		vals := cursor.Row()
 		if vals[0].(int32) != int32(id) {
 			t.Fatalf("(0) Expected %d, got %v", id, vals[0])
 		}

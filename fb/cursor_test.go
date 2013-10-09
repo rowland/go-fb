@@ -25,10 +25,10 @@ func TestFetch(t *testing.T) {
 	if cursor == nil {
 		t.Fatal("Cursor should not be nil.")
 	}
-	var row []interface{}
-	if err = cursor.Fetch(&row); err != nil {
-		t.Fatalf("Error in Fetch: %s", err)
+	if !cursor.Next() {
+		t.Fatalf("Error in Fetch: %s", cursor.Err())
 	}
+	row := cursor.Row()
 	if len(row) != 4 {
 		t.Errorf("Expected row length 4, found length %d", len(row))
 	}
@@ -177,17 +177,21 @@ func TestFetchAfterEnd(t *testing.T) {
 	}
 	defer cursor.Close()
 
-	var row []interface{}
-	if err = cursor.Fetch(&row); err != nil {
-		t.Fatalf("Error in fetch: %s", err)
+	if !cursor.Next() {
+		t.Fatalf("Error in fetch: %s", cursor.Err())
 	}
-	if err = cursor.Fetch(&row); err != io.EOF {
-		t.Fatalf("Expecting os.EOF, got: %s", err)
+	if cursor.Next() {
+		t.Fatal("Next should not succeed.")
 	}
-	err = cursor.Fetch(&row)
-	err2, ok := err.(*Error)
+	if cursor.Err() != io.EOF {
+		t.Fatalf("Expecting io.EOF, got: %s", err)
+	}
+	if cursor.Next() {
+		t.Fatal("Next should not succeed.")
+	}
+	err2, ok := cursor.Err().(*Error)
 	if !ok {
-		t.Fatalf("Expecting fb.Error, got: %s", reflect.TypeOf(err))
+		t.Fatalf("Expecting fb.Error, got: %s", reflect.TypeOf(cursor.Err()))
 	}
 	if err2.Message != "Cursor is past end of data." {
 		t.Errorf("Unexpected error message: %s", err2.Message)
@@ -211,17 +215,21 @@ func TestFetchAfterEnd2(t *testing.T) {
 	}
 	defer cursor.Close()
 
-	var row []interface{}
-	if err = cursor.Fetch(&row); err != nil {
-		t.Fatalf("Error in fetch: %s", err)
+	if !cursor.Next() {
+		t.Fatalf("Error in fetch: %s", cursor.Err())
 	}
-	if err = cursor.Fetch(&row); err != io.EOF {
-		t.Fatalf("Expecting os.EOF, got: %s", err)
+	if cursor.Next() {
+		t.Fatal("Next should not succeed.")
 	}
-	err = cursor.Fetch(&row)
-	err2, ok := err.(*Error)
+	if cursor.Err() != io.EOF {
+		t.Fatalf("Expecting io.EOF, got: %s", err)
+	}
+	if cursor.Next() {
+		t.Fatal("Next should not succeed.")
+	}
+	err2, ok := cursor.Err().(*Error)
 	if !ok {
-		t.Fatalf("Expecting fb.Error, got: %s", reflect.TypeOf(err))
+		t.Fatalf("Expecting fb.Error, got: %s", reflect.TypeOf(cursor.Err()))
 	}
 	if err2.Message != "Cursor is past end of data." {
 		t.Errorf("Unexpected error message: %s", err2.Message)
