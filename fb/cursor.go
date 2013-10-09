@@ -66,7 +66,7 @@ func (cursor *Cursor) execute(sql string, args ...interface{}) (rowsAffected int
 	if cursor.connection.TransactionStarted() {
 		rowsAffected, err = cursor.execute2(sql, args...)
 	} else {
-		cursor.connection.transactionStart(nil)
+		cursor.connection.TransactionStart("")
 		cursor.auto_transact = cursor.connection.transact
 		rowsAffected, err = cursor.execute2(sql, args...)
 		// fmt.Printf("rowsAffected: %d\n", rowsAffected)

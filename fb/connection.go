@@ -129,14 +129,12 @@ func (conn *Connection) Commit() (err error) {
 	if conn.transact != 0 {
 		conn.closeCursors()
 		C.isc_commit_transaction(&isc_status[0], &conn.transact)
-		if err = fbErrorCheck(&isc_status); err != nil {
-			return
-		}
+		err = fbErrorCheck(&isc_status)
 	}
 	return nil
 }
 
-func (conn *Connection) transactionStart(options *string) error {
+func (conn *Connection) TransactionStart(options string) error {
 	var isc_status [20]C.ISC_STATUS
 
 	if conn.TransactionStarted() {
@@ -144,8 +142,8 @@ func (conn *Connection) transactionStart(options *string) error {
 	}
 	var tpb *C.char = (*C.char)(nil)
 	var tpb_len C.long = 0
-	if options != nil {
-		options2 := C.CString(*options)
+	if options != "" {
+		options2 := C.CString(options)
 		defer C.free(unsafe.Pointer(options2))
 		tpb = C.trans_parseopts(options2, &tpb_len)
 		if tpb_len < 0 {
@@ -158,6 +156,13 @@ func (conn *Connection) transactionStart(options *string) error {
 	return fbErrorCheck(&isc_status)
 }
 
-func (conn *Connection) Rollback() {
+func (conn *Connection) Rollback() (err error) {
+	var isc_status [20]C.ISC_STATUS
 
+	if conn.transact != 0 {
+		conn.closeCursors()
+		C.isc_rollback_transaction(&isc_status[0], &conn.transact)
+		err = fbErrorCheck(&isc_status)
+	}
+	return
 }
