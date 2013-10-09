@@ -5,11 +5,8 @@ package fb
 */
 import "C"
 
-	// #include <stdlib.h>
-	// #include <string.h>
-	// #include "fb.h"
-
 import (
+	"bytes"
 	"fmt"
 	"time"
 )
@@ -22,6 +19,50 @@ const (
 
 func fbAlign(n C.ISC_SHORT, b C.ISC_SHORT) C.ISC_SHORT {
 	return (n + b - 1) & ^(b - 1)
+}
+
+func fbErrorMsg(isc_status *C.ISC_STATUS) string {
+	var msg [1024]C.ISC_SCHAR
+	var buf bytes.Buffer
+	for C.fb_interpret(&msg[0], 1024, &isc_status) != 0 {
+		for i := 0; msg[i] != 0; i++ {
+			buf.WriteByte(uint8(msg[i]))
+		}
+		buf.WriteString("\n")
+	}
+	return buf.String()
+}
+
+func fbErrorCheck(isc_status *[20]C.ISC_STATUS) error {
+	if isc_status[0] == 1 && isc_status[1] != 0 {
+		var msg [1024]C.ISC_SCHAR
+		var code C.short = C.short(C.isc_sqlcode(&isc_status[0]))
+
+		C.isc_sql_interprete(code, &msg[0], 1024)
+		var buf bytes.Buffer
+		for i := 0; msg[i] != 0; i++ {
+			buf.WriteByte(uint8(msg[i]))
+		}
+		buf.WriteString("\n")
+		buf.WriteString(fbErrorMsg(&isc_status[0]))
+
+		return &Error{int(code), buf.String()}
+	}
+	return nil
+}
+
+func fbErrorCheckWarn(isc_status *[20]C.ISC_STATUS) error {
+	var code C.short = C.short(C.isc_sqlcode(&isc_status[0]))
+	if code != 0 {
+		var buf [1024]C.ISC_SCHAR
+		C.isc_sql_interprete(code, &buf[0], 1024)
+		var msg bytes.Buffer
+		for i := 0; buf[i] != 0; i++ {
+			msg.WriteByte(uint8(buf[i]))
+		}
+		return &Error{int(code), msg.String()}
+	}
+	return nil
 }
 
 func timeFromIscTime(tm C.ISC_TIME, loc *time.Location) (t time.Time) {
