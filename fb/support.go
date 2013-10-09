@@ -3,9 +3,12 @@ package fb
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 	"time"
 )
+
+var reLowercase = regexp.MustCompile("[a-z]")
 
 func bytesFromIf(v interface{}) (b []byte, err error) {
 	switch v := v.(type) {
@@ -82,6 +85,10 @@ func float64FromIf(v interface{}) (f float64, err error) {
 		return 0.0, err
 	}
 	return
+}
+
+func hasLowercase(s string) bool {
+	return reLowercase.MatchString(s)
 }
 
 func int64FromIf(v interface{}) (i int64, err error) {
