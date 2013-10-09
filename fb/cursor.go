@@ -794,7 +794,7 @@ var blobItemsFetch = [...]C.ISC_SCHAR{
 	C.isc_info_blob_total_length,
 }
 
-func (cursor *Cursor) Fetch(row interface{}) (err error) {
+func (cursor *Cursor) Fetch(row *[]interface{}) (err error) {
 	const SQLCODE_NOMORE = 100
 	var isc_status [20]C.ISC_STATUS
 
@@ -819,7 +819,9 @@ func (cursor *Cursor) Fetch(row interface{}) (err error) {
 	}
 	// create result tuple
 	cols := cursor.o_sqlda.sqld
-	ary := make([]interface{}, cols)
+	if len(*row) < int(cols) {
+		*row = make([]interface{}, cols)
+	}
 	// set result value for each column
 	for count := C.ISC_SHORT(0); count < cols; count++ {
 		var val interface{}
@@ -933,13 +935,7 @@ func (cursor *Cursor) Fetch(row interface{}) (err error) {
 				}
 			}
 		}
-		ary[count] = val
-	}
-	switch row := row.(type) {
-	case *[]interface{}:
-		*row = ary
-	default:
-		err = errors.New(fmt.Sprintf("Unsupported row type: %T", row))
+		(*row)[count] = val
 	}
 	return
 }
