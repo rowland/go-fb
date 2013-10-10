@@ -8,7 +8,25 @@ import (
 	"time"
 )
 
+const (
+	int16max  = (1 << 15) - 1
+	int16min  = -(1 << 15)
+	uint16max = (1 << 16) - 1
+	int32max  = (1 << 31) - 1
+	int32min  = -(1 << 31)
+	uint32max = (1 << 32) - 1
+)
+
 var reLowercase = regexp.MustCompile("[a-z]")
+
+func boolFromIf(v interface{}) (b bool, err error) {
+	var s string
+	s, err = stringFromIf(v)
+	if err == nil {
+		b, err = strconv.ParseBool(s)
+	}
+	return
+}
 
 func bytesFromIf(v interface{}) (b []byte, err error) {
 	switch v := v.(type) {
@@ -87,6 +105,13 @@ func float64FromIf(v interface{}) (f float64, err error) {
 	return
 }
 
+func float32FromIf(v interface{}) (f float32, err error) {
+	var f64 float64
+	f64, err = float64FromIf(v)
+	f = float32(f64)
+	return
+}
+
 func hasLowercase(s string) bool {
 	return reLowercase.MatchString(s)
 }
@@ -117,6 +142,26 @@ func int64FromIf(v interface{}) (i int64, err error) {
 	if err != nil {
 		return 0, errors.New("integer value expected")
 	}
+	return
+}
+
+func int32FromIf(v interface{}) (i int32, err error) {
+	var i64 int64
+	if i64, err = int64FromIf(v); err != nil {
+		return
+	}
+	if i64 > int32max || i64 < int32min {
+		err = fmt.Errorf("Value %d is out of range %d - %d", i64, int32min, int32max)
+	} else {
+		i = int32(i64)
+	}
+	return
+}
+
+func intFromIf(v interface{}) (i int, err error) {
+	var i32 int32
+	i32, err = int32FromIf(v)
+	i = int(i32)
 	return
 }
 
@@ -199,6 +244,39 @@ func timeFromIf(v interface{}, location *time.Location) (t time.Time, err error)
 		t, err = parseUnknownTime(v.String(), location)
 	default:
 		return time.Time{}, errors.New("time value expected")
+	}
+	return
+}
+
+var errNilPointer = errors.New("ConvertValue: destination is nil")
+
+func ConvertValue(dest, src interface{}) (err error) {
+	if dest == nil {
+		return errNilPointer
+	}
+	switch d := dest.(type) {
+	case *bool:
+		*d, err = boolFromIf(src)
+	case *[]byte:
+		*d, err = bytesFromIf(src)
+	case *int:
+		*d, err = intFromIf(src)
+	case *int32:
+		*d, err = int32FromIf(src)
+	case *int64:
+		*d, err = int64FromIf(src)
+	case *interface{}:
+		*d = src
+	case *float32:
+		*d, err = float32FromIf(src)
+	case *float64:
+		*d, err = float64FromIf(src)
+	case *string:
+		*d, err = stringFromIf(src)
+	case *time.Time:
+		*d, err = timeFromIf(src, time.Local)
+	case Scanner:
+		err = d.Scan(src)
 	}
 	return
 }

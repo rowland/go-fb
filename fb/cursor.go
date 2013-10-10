@@ -826,3 +826,21 @@ func (cursor *Cursor) Row() []interface{} {
 	}
 	return cursor.lastRow
 }
+
+func (cursor *Cursor) Scan(dest ...interface{}) error {
+	if cursor.err != nil {
+		return cursor.err
+	}
+	if cursor.row == nil {
+		return errors.New("fb: Scan called without calling Next")
+	}
+	if len(dest) != len(cursor.row) {
+		return fmt.Errorf("fb: expected %d destination arguments to Scan, received %d", len(cursor.row), len(dest))
+	}
+	for i, v := range cursor.row {
+		if err := ConvertValue(dest[i], v); err != nil {
+			return fmt.Errorf("fb: Scan error on column %d: %v (%v)", i, err, v)
+		}
+	}
+	return nil
+}
