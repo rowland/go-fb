@@ -26,7 +26,7 @@ func TestMapFromConnectionString(t *testing.T) {
 		t.Error("Error finding key: database")
 	}
 	if m["username"] != "gotest" {
-		t.Error("Error finding key: database")
+		t.Error("Error finding key: username")
 	}
 	if m["password"] != "gotest" {
 		t.Error("Error finding key: password")
@@ -50,7 +50,7 @@ func TestNew(t *testing.T) {
 	if db == nil {
 		t.Fatal("db is nil")
 	}
-	st := SuperTest{t, "TestNew"}
+	st := SuperTest{t}
 	st.Equal("localhost:/var/fbdata/go-fb-test.fdb", db.Database)
 	st.Equal("gotest", db.Username)
 	st.Equal("gotest", db.Password)
@@ -64,7 +64,7 @@ func TestNew2(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Unexpected error: %s", err)
 	}
-	st := SuperTest{t, "TestNew2"}
+	st := SuperTest{t}
 	st.Equal("", db.Charset)
 	st.Equal("", db.Role)
 	st.Equal(true, db.LowercaseNames)

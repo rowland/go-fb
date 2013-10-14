@@ -10,6 +10,7 @@ import (
 )
 
 func TestNextRow(t *testing.T) {
+	st := SuperTest{t}
 	const SqlSelect = "SELECT * FROM RDB$DATABASE"
 
 	os.Remove(TestFilename)
@@ -30,25 +31,18 @@ func TestNextRow(t *testing.T) {
 		t.Fatalf("Error in Next: %s", cursor.Err())
 	}
 	row := cursor.Row()
-	if len(row) != 4 {
-		t.Errorf("Expected row length 4, found length %d", len(row))
-	}
-	if row[0] != nil {
-		t.Errorf("Expected row[0] to be nil, got %v", row[0])
-	}
+	st.Equal(4, len(row))
+	st.Equal(nil, row[0])
 	_, ok := row[1].(int16)
 	if !ok {
 		t.Errorf("Expected row[1] to be an int, got %v", reflect.TypeOf(row[1]))
 	}
-	if row[2] != nil {
-		t.Errorf("Expected row[2] to be nil, got %v", row[2])
-	}
-	if strings.TrimSpace(row[3].(string)) != "NONE" {
-		t.Errorf("Expected row[3] to be 'NONE', got '%v'", row[3])
-	}
+	st.Equal(nil, row[2])
+	st.Equal("NONE", strings.TrimSpace(row[3].(string)))
 }
 
 func TestScan(t *testing.T) {
+	st := SuperTest{t}
 	os.Remove(TestFilename)
 
 	conn, err := Create(TestConnectionString)
@@ -159,150 +153,58 @@ func TestScan(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if id != 1 {
-		t.Errorf("id: expected 1, got %v", id)
-	}
-	if flag != true {
-		t.Errorf("flag: expected true, got %v", flag)
-	}
-	if string(binary) != "BINARY BLOB CONTENTS" {
-		t.Errorf("binary: expected 'BINARY BLOB CONTENTS' got %v", binary)
-	}
-	if i != 123 {
-		t.Errorf("i: expected 123, got %v", i)
-	}
-	if i32 != 1234 {
-		t.Errorf("i32: expected 1234, got %v", i32)
-	}
-	if i64 != 1234567890 {
-		t.Errorf("i64: expected 1234567890, got %v", i64)
-	}
-	if f32 != 123.24 {
-		t.Errorf("f32: expected 123.24, got %v", f32)
-	}
-	if f64 != 123456789.24 {
-		t.Errorf("f64: expected 123456789.24, got %v", f64)
-	}
-	if c != "A" {
-		t.Errorf("c: expected 1, got %v", c)
-	}
-	if cs != "ABCDEFGHIJKLMNOPQRSTUVWXYZ" {
-		t.Errorf("cs: expected 1, got %v", cs)
-	}
-	if v != "A" {
-		t.Errorf("v: expected 1, got %v", v)
-	}
-	if vs != "ABCDEFGHIJKLMNOPQRSTUVWXYZ" {
-		t.Errorf("vs: expected 1, got %v", vs)
-	}
-	if m != "TEXT BLOB CONTENTS" {
-		t.Errorf("m: expected 'TEXT BLOB CONTENTS', got %v", m)
-	}
-	if dt != dtExpected {
-		t.Errorf("dt: expected %v, got %v", dtExpected, dt)
-	}
-	if tm != tmExpected {
-		t.Errorf("tm: expected %v, got %v", tmExpected, tm)
-	}
-	if ts != tsExpected {
-		t.Errorf("ts: expected %v, got %v", tsExpected, ts)
-	}
+	st.Equal(int64(1), id)
+	st.Equal(true, flag)
+	st.Equal("BINARY BLOB CONTENTS", string(binary))
+	st.Equal(123, i)
+	st.Equal(int32(1234), i32)
+	st.Equal(int64(1234567890), i64)
+	st.Equal(float32(123.24), f32)
+	st.Equal(123456789.24, f64)
+	st.Equal("A", c)
+	st.Equal("ABCDEFGHIJKLMNOPQRSTUVWXYZ", cs)
+	st.Equal("A", v)
+	st.Equal("ABCDEFGHIJKLMNOPQRSTUVWXYZ", vs)
+	st.Equal("TEXT BLOB CONTENTS", m)
+	st.Equal(dtExpected, dt)
+	st.Equal(tmExpected, tm)
+	st.Equal(tsExpected, ts)
 
 	if err = cursor.Scan(&id, &nflag, &nbinary, &ni, &ni32, &ni64, &nf32, &nf64, &nc, &ncs, &nv, &nvs, &nm, &ndt, &ntm, &nts); err != nil {
 		t.Fatal(err)
 	}
 
-	if nflag.Null {
-		t.Error("bool null")
-	}
-	if nbinary.Null {
-		t.Error("bytes null")
-	}
-	if ni.Null {
-		t.Error("int null")
-	}
-	if ni32.Null {
-		t.Error("int32 null")
-	}
-	if ni64.Null {
-		t.Error("int64 null")
-	}
-	if nf32.Null {
-		t.Error("float32 null")
-	}
-	if nf64.Null {
-		t.Error("float64 null")
-	}
-	if nc.Null {
-		t.Error("char null")
-	}
-	if ncs.Null {
-		t.Error("char string null")
-	}
-	if nv.Null {
-		t.Error("varchar null")
-	}
-	if nvs.Null {
-		t.Error("varchar string null")
-	}
-	if nm.Null {
-		t.Error("memo null")
-	}
-	if ndt.Null {
-		t.Error("date null")
-	}
-	if ntm.Null {
-		t.Error("time null")
-	}
-	if nts.Null {
-		t.Error("timestamp null")
-	}
+	st.False(nflag.Null)
+	st.False(nbinary.Null)
+	st.False(ni.Null)
+	st.False(ni32.Null)
+	st.False(ni64.Null)
+	st.False(nf32.Null)
+	st.False(nf64.Null)
+	st.False(nc.Null)
+	st.False(ncs.Null)
+	st.False(nv.Null)
+	st.False(nvs.Null)
+	st.False(nm.Null)
+	st.False(ndt.Null)
+	st.False(ntm.Null)
+	st.False(nts.Null)
 
-	if nflag.Value != true {
-		t.Errorf("flag: expected true, got %v", nflag.Value)
-	}
-	if string(nbinary.Value) != "BINARY BLOB CONTENTS" {
-		t.Errorf("binary: expected 'BINARY BLOB CONTENTS' got %v", nbinary.Value)
-	}
-	if ni.Value != 123 {
-		t.Errorf("i: expected 123, got %v", ni.Value)
-	}
-	if ni32.Value != 1234 {
-		t.Errorf("i32: expected 1234, got %v", ni32.Value)
-	}
-	if ni64.Value != 1234567890 {
-		t.Errorf("i64: expected 1234567890, got %v", ni64.Value)
-	}
-	if nf32.Value != 123.24 {
-		t.Errorf("f32: expected 123.24, got %v", nf32.Value)
-	}
-	if nf64.Value != 123456789.24 {
-		t.Errorf("f64: expected 123456789.24, got %v", nf64.Value)
-	}
-	if nc.Value != "A" {
-		t.Errorf("c: expected 1, got %v", nc.Value)
-	}
-	if ncs.Value != "ABCDEFGHIJKLMNOPQRSTUVWXYZ" {
-		t.Errorf("cs: expected 1, got %v", ncs.Value)
-	}
-	if nv.Value != "A" {
-		t.Errorf("v: expected 1, got %v", nv.Value)
-	}
-	if nvs.Value != "ABCDEFGHIJKLMNOPQRSTUVWXYZ" {
-		t.Errorf("vs: expected 1, got %v", nvs.Value)
-	}
-	if nm.Value != "TEXT BLOB CONTENTS" {
-		t.Errorf("m: expected 'TEXT BLOB CONTENTS', got %v", nm.Value)
-	}
-	if ndt.Value != dtExpected {
-		t.Errorf("dt: expected %v, got %v", dtExpected, ndt.Value)
-	}
-	if ntm.Value != tmExpected {
-		t.Errorf("tm: expected %v, got %v", tmExpected, ntm.Value)
-	}
-	if nts.Value != tsExpected {
-		t.Errorf("ts: expected %v, got %v", tsExpected, nts.Value)
-	}
+	st.Equal(true, nflag.Value)
+	st.Equal("BINARY BLOB CONTENTS", string(nbinary.Value))
+	st.Equal(int32(123), ni.Value)
+	st.Equal(int32(1234), ni32.Value)
+	st.Equal(int64(1234567890), ni64.Value)
+	st.Equal(float32(123.24), nf32.Value)
+	st.Equal(123456789.24, nf64.Value)
+	st.Equal("A", nc.Value)
+	st.Equal("ABCDEFGHIJKLMNOPQRSTUVWXYZ", ncs.Value)
+	st.Equal("A", nv.Value)
+	st.Equal("ABCDEFGHIJKLMNOPQRSTUVWXYZ", nvs.Value)
+	st.Equal("TEXT BLOB CONTENTS", nm.Value)
+	st.Equal(dtExpected, ndt.Value)
+	st.Equal(tmExpected, ntm.Value)
+	st.Equal(tsExpected, nts.Value)
 
 	if !cursor.Next() {
 		t.Fatalf("Error in Next: %v", cursor.Err())
@@ -314,54 +216,25 @@ func TestScan(t *testing.T) {
 	if err = cursor.Scan(&id, &nflag, &nbinary, &ni, &ni32, &ni64, &nf32, &nf64, &nc, &ncs, &nv, &nvs, &nm, &ndt, &ntm, &nts); err != nil {
 		t.Fatal(err)
 	}
-	if !nflag.Null {
-		t.Error("bool not null")
-	}
-	if !nbinary.Null {
-		t.Error("bytes not null")
-	}
-	if !ni.Null {
-		t.Error("int not null")
-	}
-	if !ni32.Null {
-		t.Error("int32 not null")
-	}
-	if !ni64.Null {
-		t.Error("int64 not null")
-	}
-	if !nf32.Null {
-		t.Error("float32 not null")
-	}
-	if !nf64.Null {
-		t.Error("float64 not null")
-	}
-	if !nc.Null {
-		t.Error("char not null")
-	}
-	if !ncs.Null {
-		t.Error("char string not null")
-	}
-	if !nv.Null {
-		t.Error("varchar not null")
-	}
-	if !nvs.Null {
-		t.Error("varchar string not null")
-	}
-	if !nm.Null {
-		t.Error("memo not null")
-	}
-	if !ndt.Null {
-		t.Error("date not null")
-	}
-	if !ntm.Null {
-		t.Error("time not null")
-	}
-	if !nts.Null {
-		t.Error("timestamp not null")
-	}
+	st.True(nflag.Null)
+	st.True(nbinary.Null)
+	st.True(ni.Null)
+	st.True(ni32.Null)
+	st.True(ni64.Null)
+	st.True(nf32.Null)
+	st.True(nf64.Null)
+	st.True(nc.Null)
+	st.True(ncs.Null)
+	st.True(nv.Null)
+	st.True(nvs.Null)
+	st.True(nm.Null)
+	st.True(ndt.Null)
+	st.True(ntm.Null)
+	st.True(nts.Null)
 }
 
 func TestCursorFields(t *testing.T) {
+	st := SuperTest{t}
 	const SqlSelect = "SELECT * FROM RDB$DATABASE"
 
 	os.Remove(TestFilename)
@@ -378,10 +251,7 @@ func TestCursorFields(t *testing.T) {
 	defer cursor.Close()
 
 	fields := cursor.Fields
-	if len(fields) != 4 {
-		t.Fatalf("Expected 4 fields, found %d", len(fields))
-	}
-	st := SuperTest{t, "Fields"}
+	st.Equal(4, len(fields))
 	st.Equal("RDB$DESCRIPTION", fields[0].Name)
 	st.Equal("RDB$RELATION_ID", fields[1].Name)
 	st.Equal("RDB$SECURITY_CLASS", fields[2].Name)
@@ -389,6 +259,7 @@ func TestCursorFields(t *testing.T) {
 }
 
 func TestCursorFieldsLowercased(t *testing.T) {
+	st := SuperTest{t}
 	const SqlSelect = "SELECT * FROM RDB$DATABASE"
 
 	os.Remove(TestFilename)
@@ -405,10 +276,7 @@ func TestCursorFieldsLowercased(t *testing.T) {
 	defer cursor.Close()
 
 	fields := cursor.Fields
-	if len(fields) != 4 {
-		t.Fatalf("Expected 4 fields, found %d", len(fields))
-	}
-	st := SuperTest{t, "Fields"}
+	st.Equal(4, len(fields))
 	st.Equal("rdb$description", fields[0].Name)
 	st.Equal("rdb$relation_id", fields[1].Name)
 	st.Equal("rdb$security_class", fields[2].Name)
@@ -416,6 +284,7 @@ func TestCursorFieldsLowercased(t *testing.T) {
 }
 
 func TestCursorFieldsMap(t *testing.T) {
+	st := SuperTest{t}
 	const SqlSelect = "SELECT * FROM RDB$DATABASE"
 
 	os.Remove(TestFilename)
@@ -432,10 +301,7 @@ func TestCursorFieldsMap(t *testing.T) {
 	defer cursor.Close()
 
 	fields := cursor.FieldsMap
-	if len(fields) != 4 {
-		t.Fatalf("Expected 4 fields, found %d", len(fields))
-	}
-	st := SuperTest{t, "Fields"}
+	st.Equal(4, len(fields))
 	st.Equal(520, fields["RDB$DESCRIPTION"].TypeCode)
 	st.Equal(500, fields["RDB$RELATION_ID"].TypeCode)
 	st.Equal(452, fields["RDB$SECURITY_CLASS"].TypeCode)
@@ -443,6 +309,7 @@ func TestCursorFieldsMap(t *testing.T) {
 }
 
 func TestCursorFieldsWithAliasedFields(t *testing.T) {
+	st := SuperTest{t}
 	const SqlSelect = "SELECT RDB$DESCRIPTION DES, RDB$RELATION_ID REL, RDB$SECURITY_CLASS SEC, RDB$CHARACTER_SET_NAME FROM RDB$DATABASE"
 
 	os.Remove(TestFilename)
@@ -459,10 +326,7 @@ func TestCursorFieldsWithAliasedFields(t *testing.T) {
 	defer cursor.Close()
 
 	fields := cursor.Fields
-	if len(fields) != 4 {
-		t.Fatalf("Expected 4 fields, found %d", len(fields))
-	}
-	st := SuperTest{t, "Fields"}
+	st.Equal(4, len(fields))
 	st.Equal("DES", fields[0].Name)
 	st.Equal("REL", fields[1].Name)
 	st.Equal("SEC", fields[2].Name)

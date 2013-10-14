@@ -346,9 +346,6 @@ func Test_timeReality(t *testing.T) {
 	if !t1.Equal(t2) {
 		t.Errorf("Unix times are incompatible: got %v, expected %v", t2, t1)
 	}
-	// if t1.String() != t2.String() {
-	// 	t.Errorf("Unix times are incompatible: got %v, expected %v", t2, t1)
-	// }
 }
 
 func TestConvertValue_bool(t *testing.T) {

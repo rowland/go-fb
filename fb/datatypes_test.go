@@ -10,6 +10,7 @@ import (
 )
 
 func TestInsertInteger(t *testing.T) {
+	st := SuperTest{t}
 	os.Remove(TestFilename)
 
 	conn, err := Create(TestConnectionString)
@@ -40,15 +41,12 @@ func TestInsertInteger(t *testing.T) {
 		t.Fatalf("Error in fetch: %s", cursor.Err())
 	}
 	vals := cursor.Row()
-	if vals[0].(int32) != 500000 {
-		t.Errorf("(0) Expected %d, got %d", 500000, vals[0])
-	}
-	if vals[1].(int32) != 500000 {
-		t.Fatalf("(1) Expected %d, got %d", 500000, vals[1])
-	}
+	st.Equal(int32(500000), vals[0])
+	st.Equal(int32(500000), vals[1])
 }
 
 func TestInsertSmallint(t *testing.T) {
+	st := SuperTest{t}
 	os.Remove(TestFilename)
 
 	conn, err := Create(TestConnectionString)
@@ -79,15 +77,12 @@ func TestInsertSmallint(t *testing.T) {
 		t.Fatalf("Error in fetch: %s", cursor.Err())
 	}
 	vals := cursor.Row()
-	if vals[0].(int16) != 32123 {
-		t.Fatalf("(0) Expected %d, got %d", 32123, vals[0])
-	}
-	if vals[1].(int16) != 32123 {
-		t.Fatalf("(1) Expected %d, got %d", 32123, vals[1])
-	}
+	st.Equal(int16(32123), vals[0])
+	st.Equal(int16(32123), vals[1])
 }
 
 func TestInsertBigint(t *testing.T) {
+	st := SuperTest{t}
 	os.Remove(TestFilename)
 
 	conn, err := Create(TestConnectionString)
@@ -118,15 +113,12 @@ func TestInsertBigint(t *testing.T) {
 		t.Fatalf("Error in fetch: %s", cursor.Err())
 	}
 	vals := cursor.Row()
-	if vals[0].(int64) != 5000000000 {
-		t.Errorf("(0) Expected %d, got %d", 5000000000, vals[0])
-	}
-	if vals[1].(int64) != 5000000000 {
-		t.Fatalf("(1) Expected %d, got %d", 5000000000, vals[1])
-	}
+	st.Equal(int64(5000000000), vals[0])
+	st.Equal(int64(5000000000), vals[1])
 }
 
 func TestInsertFloat(t *testing.T) {
+	st := SuperTest{t}
 	os.Remove(TestFilename)
 
 	conn, err := Create(TestConnectionString)
@@ -157,15 +149,12 @@ func TestInsertFloat(t *testing.T) {
 		t.Fatalf("Error in fetch: %s", cursor.Err())
 	}
 	vals := cursor.Row()
-	if vals[0].(float32) != 5.75 {
-		t.Fatalf("(0) Expected %f, got %f", 5.75, vals[0])
-	}
-	if vals[1].(float32) != 5.75 {
-		t.Fatalf("(1) Expected %f, got %f", 5.75, vals[1])
-	}
+	st.Equal(float32(5.75), vals[0])
+	st.Equal(float32(5.75), vals[1])
 }
 
 func TestInsertDouble(t *testing.T) {
+	st := SuperTest{t}
 	os.Remove(TestFilename)
 
 	conn, err := Create(TestConnectionString)
@@ -196,15 +185,12 @@ func TestInsertDouble(t *testing.T) {
 		t.Fatalf("Error in fetch: %s", cursor.Err())
 	}
 	vals := cursor.Row()
-	if vals[0].(float64) != 12345.12345 {
-		t.Fatalf("(0) Expected %f, got %f", 12345.12345, vals[0])
-	}
-	if vals[1].(float64) != 12345.12345 {
-		t.Fatalf("(1) Expected %f, got %f", 12345.12345, vals[1])
-	}
+	st.Equal(float64(12345.12345), vals[0])
+	st.Equal(float64(12345.12345), vals[1])
 }
 
 func TestInsertChar(t *testing.T) {
+	st := SuperTest{t}
 	os.Remove(TestFilename)
 
 	conn, err := Create(TestConnectionString)
@@ -238,26 +224,19 @@ func TestInsertChar(t *testing.T) {
 		t.Fatalf("Error in fetch: %s", cursor.Err())
 	}
 	vals := cursor.Row()
-	if vals[0].(string) != "5" {
-		t.Fatalf("(0) Expected %s, got %s", "5", vals[0])
-	}
-	if vals[1].(string) != "1234567890" {
-		t.Fatalf("(1) Expected %s, got %s", "1234567890", vals[1])
-	}
+	st.Equal("5", vals[0])
+	st.Equal("1234567890", vals[1])
 
 	if !cursor.Next() {
 		t.Fatalf("Error in fetch: %s", cursor.Err())
 	}
 	vals = cursor.Row()
-	if vals[0].(string) != "5" {
-		t.Fatalf("(0) Expected %d, got %d", "5", vals[0])
-	}
-	if vals[1].(string) != "1234567890" {
-		t.Fatalf("(1) Expected %s, got %s", "1234567890", vals[1])
-	}
+	st.Equal("5", vals[0])
+	st.Equal("1234567890", vals[1])
 }
 
 func TestInsertVarchar(t *testing.T) {
+	st := SuperTest{t}
 	os.Remove(TestFilename)
 
 	conn, err := Create(TestConnectionString)
@@ -291,26 +270,19 @@ func TestInsertVarchar(t *testing.T) {
 		t.Fatalf("Error in fetch: %s", cursor.Err())
 	}
 	vals := cursor.Row()
-	if vals[0].(string) != "5" {
-		t.Fatalf("(0) Expected %s, got %s", "5", vals[0])
-	}
-	if vals[1].(string) != "1234567890" {
-		t.Fatalf("(1) Expected %s, got %s", "1234567890", vals[1])
-	}
+	st.Equal("5", vals[0])
+	st.Equal("1234567890", vals[1])
 
 	if !cursor.Next() {
 		t.Fatalf("Error in fetch: %s", cursor.Err())
 	}
 	vals = cursor.Row()
-	if vals[0].(string) != "5" {
-		t.Fatalf("(0) Expected %d, got %d", "5", vals[0])
-	}
-	if vals[1].(string) != "1234567890" {
-		t.Fatalf("(1) Expected %s, got %s", "1234567890", vals[1])
-	}
+	st.Equal("5", vals[0])
+	st.Equal("1234567890", vals[1])
 }
 
 func TestInsertVarchar10000(t *testing.T) {
+	st := SuperTest{t}
 	os.Remove(TestFilename)
 
 	conn, err := Create(TestConnectionString)
@@ -344,15 +316,12 @@ func TestInsertVarchar10000(t *testing.T) {
 		t.Fatalf("Error in fetch: %s", cursor.Err())
 	}
 	vals := cursor.Row()
-	if vals[0].(string) != bs {
-		t.Fatalf("(0) Expected %s, got %s", bs, vals[0])
-	}
-	if vals[1].(string) != bs {
-		t.Fatalf("(1) Expected %d, got %d", bs, vals[1])
-	}
+	st.Equal(bs, vals[0])
+	st.Equal(bs, vals[1])
 }
 
 func TestInsertTimestamp(t *testing.T) {
+	st := SuperTest{t}
 	os.Remove(TestFilename)
 
 	conn, err := Create(TestConnectionString)
@@ -387,21 +356,14 @@ func TestInsertTimestamp(t *testing.T) {
 		t.Fatalf("Error in fetch: %s", cursor.Err())
 	}
 	vals := cursor.Row()
-	if !vals[0].(time.Time).Equal(dt) {
-		t.Fatalf("(0) Expected %s, got %s", dt, vals[0])
-	}
-	if !vals[1].(time.Time).Equal(dt) {
-		t.Fatalf("(1) Expected %s, got %s", dt, vals[1])
-	}
-	if !vals[2].(time.Time).Equal(dt) {
-		t.Fatalf("(2) Expected %s, got %s", dt, vals[2])
-	}
-	if !vals[3].(time.Time).Equal(dt) {
-		t.Fatalf("(3) Expected %s, got %s", dt, vals[3])
-	}
+	st.Equal(dt, vals[0])
+	st.Equal(dt, vals[1])
+	st.Equal(dt, vals[2])
+	st.Equal(dt, vals[3])
 }
 
 func TestInsertDate(t *testing.T) {
+	st := SuperTest{t}
 	os.Remove(TestFilename)
 
 	conn, err := Create(TestConnectionString)
@@ -436,21 +398,14 @@ func TestInsertDate(t *testing.T) {
 		t.Fatalf("Error in fetch: %s", cursor.Err())
 	}
 	vals := cursor.Row()
-	if !vals[0].(time.Time).Equal(dt) {
-		t.Fatalf("(0) Expected %s, got %s", dt, vals[0])
-	}
-	if !vals[1].(time.Time).Equal(dt) {
-		t.Fatalf("(1) Expected %s, got %s", dt, vals[1])
-	}
-	if !vals[2].(time.Time).Equal(dt) {
-		t.Fatalf("(2) Expected %s, got %s", dt, vals[2])
-	}
-	if !vals[3].(time.Time).Equal(dt) {
-		t.Fatalf("(3) Expected %s, got %s", dt, vals[3])
-	}
+	st.Equal(dt, vals[0])
+	st.Equal(dt, vals[1])
+	st.Equal(dt, vals[2])
+	st.Equal(dt, vals[3])
 }
 
 func TestInsertTime(t *testing.T) {
+	st := SuperTest{t}
 	os.Remove(TestFilename)
 
 	conn, err := Create(TestConnectionString)
@@ -484,18 +439,13 @@ func TestInsertTime(t *testing.T) {
 		t.Fatalf("Error in fetch: %s", cursor.Err())
 	}
 	vals := cursor.Row()
-	if !vals[0].(time.Time).Equal(dt) {
-		t.Fatalf("(0) Expected %s, got %s", dt, vals[0])
-	}
-	if !vals[1].(time.Time).Equal(dt) {
-		t.Fatalf("(1) Expected %s, got %s", dt, vals[1])
-	}
-	if !vals[2].(time.Time).Equal(dt) {
-		t.Fatalf("(2) Expected %s, got %s", dt, vals[2])
-	}
+	st.Equal(dt, vals[0])
+	st.Equal(dt, vals[1])
+	st.Equal(dt, vals[2])
 }
 
 func TestInsertNumeric(t *testing.T) {
+	st := SuperTest{t}
 	os.Remove(TestFilename)
 
 	conn, err := Create(TestConnectionString)
@@ -529,32 +479,21 @@ func TestInsertNumeric(t *testing.T) {
 		t.Fatalf("Error in fetch: %s", cursor.Err())
 	}
 	vals := cursor.Row()
-	if vals[0].(float64) != 12345.12 {
-		t.Fatalf("(0) Expected %f, got %v", 12345.12, vals[0])
-	}
-	if vals[1].(float64) != 12345.1234 {
-		t.Fatalf("(1) Expected %f, got %v", 12345.1234, vals[1])
-	}
-	if vals[2].(float64) != 12.1 {
-		t.Fatalf("(2) Expected %f, got %v", 12.1, vals[2])
-	}
+	st.Equal(float64(12345.12), vals[0])
+	st.Equal(float64(12345.1234), vals[1])
+	st.Equal(float64(12.1), vals[2])
 
 	if !cursor.Next() {
 		t.Fatalf("Error in fetch: %s", cursor.Err())
 	}
 	vals = cursor.Row()
-	if vals[0].(float64) != 12345.12 {
-		t.Fatalf("(0) Expected %f, got %v", 12345.12, vals[0])
-	}
-	if vals[1].(float64) != 12345.1234 {
-		t.Fatalf("(1) Expected %f, got %v", 12345.1234, vals[1])
-	}
-	if vals[2].(float64) != 12.1 {
-		t.Fatalf("(2) Expected %f, got %v", 12.1, vals[2])
-	}
+	st.Equal(float64(12345.12), vals[0])
+	st.Equal(float64(12345.1234), vals[1])
+	st.Equal(float64(12.1), vals[2])
 }
 
 func TestInsertDecimal(t *testing.T) {
+	st := SuperTest{t}
 	os.Remove(TestFilename)
 
 	conn, err := Create(TestConnectionString)
@@ -588,32 +527,21 @@ func TestInsertDecimal(t *testing.T) {
 		t.Fatalf("Error in fetch: %s", cursor.Err())
 	}
 	vals := cursor.Row()
-	if vals[0].(float64) != 12345.12 {
-		t.Fatalf("(0) Expected %f, got %v", 12345.12, vals[0])
-	}
-	if vals[1].(float64) != 12345.1234 {
-		t.Fatalf("(1) Expected %f, got %v", 12345.1234, vals[1])
-	}
-	if vals[2].(float64) != 12.1 {
-		t.Fatalf("(2) Expected %f, got %v", 12.1, vals[2])
-	}
+	st.Equal(float64(12345.12), vals[0])
+	st.Equal(float64(12345.1234), vals[1])
+	st.Equal(float64(12.1), vals[2])
 
 	if !cursor.Next() {
 		t.Fatalf("Error in fetch: %s", cursor.Err())
 	}
 	vals = cursor.Row()
-	if vals[0].(float64) != 12345.12 {
-		t.Fatalf("(0) Expected %f, got %v", 12345.12, vals[0])
-	}
-	if vals[1].(float64) != 12345.1234 {
-		t.Fatalf("(1) Expected %f, got %v", 12345.1234, vals[1])
-	}
-	if vals[2].(float64) != 12.1 {
-		t.Fatalf("(2) Expected %f, got %v", 12.1, vals[2])
-	}
+	st.Equal(float64(12345.12), vals[0])
+	st.Equal(float64(12345.1234), vals[1])
+	st.Equal(float64(12.1), vals[2])
 }
 
 func TestInsertBlob(t *testing.T) {
+	st := SuperTest{t}
 	os.Remove(TestFilename)
 
 	conn, err := Create(TestConnectionString)
@@ -653,18 +581,10 @@ func TestInsertBlob(t *testing.T) {
 			t.Fatalf("Error in fetch: %s", cursor.Err())
 		}
 		vals := cursor.Row()
-		if vals[0].(int32) != int32(id) {
-			t.Fatalf("(0) Expected %d, got %v", id, vals[0])
-		}
+		st.Equal(int32(id), vals[0])
 		name := strconv.Itoa(id)
-		if vals[1].(string) != name {
-			t.Fatalf("(1) Expected %s, got %v", name, vals[1])
-		}
-		if vals[2].(string) != memo {
-			t.Fatalf("(2) Expected %s, got %v", memo, vals[2])
-		}
-		if string(vals[3].([]byte)) != memo {
-			t.Fatalf("(3) Expected %s, got %v", memo, vals[3])
-		}
+		st.Equal(name, vals[1])
+		st.Equal(memo, vals[2])
+		st.Equal(memo, string(vals[3].([]byte)))
 	}
 }
