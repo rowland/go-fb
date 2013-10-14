@@ -14,20 +14,6 @@ type SuperTest struct {
 func (st *SuperTest) Equal(expected interface{}, actual interface{}) {
 	if expected != actual {
 		st.fail(expected, actual)
-		// pc, file, line, ok := runtime.Caller(1)
-		// var name string
-		// if ok {
-		// 	name = runtime.FuncForPC(pc).Name()
-		// 	if i := strings.LastIndex(name, "."); i >= 0 {
-		// 		name = name[i+1:]
-		// 	}
-		// 	file = filepath.Base(file)
-		// } else {
-		// 	name = "unknown func"
-		// 	file = "unknown file"
-		// 	line = 1
-		// }
-		// st.Errorf("\t%s:%d: %s: Expected %v, got %v\n", file, line, name, expected, actual)
 	}
 }
 
