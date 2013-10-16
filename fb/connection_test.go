@@ -5,6 +5,8 @@ import (
 	"testing"
 )
 
+const TestConnectionStringLowerNames = TestConnectionString + "lowercase_names=true;"
+
 func TestExecute(t *testing.T) {
 	const SqlSchema = "CREATE TABLE TEST (ID INT, NAME VARCHAR(20))"
 	const SqlSelect = "SELECT * FROM RDB$DATABASE"
@@ -66,7 +68,7 @@ func TestTableNamesLower(t *testing.T) {
 	const sqlSchema = "CREATE TABLE TEST1 (ID INTEGER); CREATE TABLE TEST2 (ID INTEGER);"
 	os.Remove(TestFilename)
 
-	conn, err := Create(TestConnectionString + "lowercase_names=true;")
+	conn, err := Create(TestConnectionStringLowerNames)
 	if err != nil {
 		t.Fatalf("Unexpected error creating database: %s", err)
 	}
@@ -124,7 +126,7 @@ func TestViewNamesLower(t *testing.T) {
 	`
 	os.Remove(TestFilename)
 
-	conn, err := Create(TestConnectionString + "lowercase_names=true;")
+	conn, err := Create(TestConnectionStringLowerNames)
 	if err != nil {
 		t.Fatalf("Unexpected error creating database: %s", err)
 	}
@@ -178,7 +180,7 @@ func TestGeneratorNamesLower(t *testing.T) {
 	`
 	os.Remove(TestFilename)
 
-	conn, err := Create(TestConnectionString + "lowercase_names=true;")
+	conn, err := Create(TestConnectionStringLowerNames)
 	if err != nil {
 		t.Fatalf("Unexpected error creating database: %s", err)
 	}
@@ -195,4 +197,58 @@ func TestGeneratorNamesLower(t *testing.T) {
 	st.MustEqual(2, len(genNames))
 	st.Equal("test1_seq", genNames[0])
 	st.Equal("test2_seq", genNames[1])
+}
+
+func TestRoleNames(t *testing.T) {
+	st := SuperTest{t}
+	const sqlSchema = `
+		create role reader;
+		create role writer;
+	`
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	if err = conn.ExecuteScript(sqlSchema); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	roleNames, err := conn.RoleNames()
+	if err != nil {
+		t.Fatal(err)
+	}
+	st.MustEqual(2, len(roleNames))
+	st.Equal("READER", roleNames[0])
+	st.Equal("WRITER", roleNames[1])
+}
+
+func TestRoleNamesLower(t *testing.T) {
+	st := SuperTest{t}
+	const sqlSchema = `
+		create role reader;
+		create role writer;
+	`
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionStringLowerNames)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	if err = conn.ExecuteScript(sqlSchema); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	roleNames, err := conn.RoleNames()
+	if err != nil {
+		t.Fatal(err)
+	}
+	st.MustEqual(2, len(roleNames))
+	st.Equal("reader", roleNames[0])
+	st.Equal("writer", roleNames[1])
 }

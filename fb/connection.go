@@ -218,3 +218,8 @@ func (conn *Connection) GeneratorNames() (names []string, err error) {
 		ORDER BY RDB$GENERATOR_NAME`
 	return conn.names(sql)
 }
+
+func (conn *Connection) RoleNames() (names []string, err error) {
+	const sql = "SELECT RDB$ROLE_NAME FROM RDB$ROLES WHERE RDB$SYSTEM_FLAG = 0 ORDER BY RDB$ROLE_NAME"
+	return conn.names(sql)
+}
