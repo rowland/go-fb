@@ -328,12 +328,12 @@ func TestCursorFields(t *testing.T) {
 	}
 	defer cursor.Close()
 
-	fields := cursor.Fields
-	st.Equal(4, len(fields))
-	st.Equal("RDB$DESCRIPTION", fields[0].Name)
-	st.Equal("RDB$RELATION_ID", fields[1].Name)
-	st.Equal("RDB$SECURITY_CLASS", fields[2].Name)
-	st.Equal("RDB$CHARACTER_SET_NAME", fields[3].Name)
+	cols := cursor.Columns
+	st.Equal(4, len(cols))
+	st.Equal("RDB$DESCRIPTION", cols[0].Name)
+	st.Equal("RDB$RELATION_ID", cols[1].Name)
+	st.Equal("RDB$SECURITY_CLASS", cols[2].Name)
+	st.Equal("RDB$CHARACTER_SET_NAME", cols[3].Name)
 }
 
 func TestCursorFieldsLowercased(t *testing.T) {
@@ -353,12 +353,12 @@ func TestCursorFieldsLowercased(t *testing.T) {
 	}
 	defer cursor.Close()
 
-	fields := cursor.Fields
-	st.Equal(4, len(fields))
-	st.Equal("rdb$description", fields[0].Name)
-	st.Equal("rdb$relation_id", fields[1].Name)
-	st.Equal("rdb$security_class", fields[2].Name)
-	st.Equal("rdb$character_set_name", fields[3].Name)
+	cols := cursor.Columns
+	st.Equal(4, len(cols))
+	st.Equal("rdb$description", cols[0].Name)
+	st.Equal("rdb$relation_id", cols[1].Name)
+	st.Equal("rdb$security_class", cols[2].Name)
+	st.Equal("rdb$character_set_name", cols[3].Name)
 }
 
 func TestCursorFieldsMap(t *testing.T) {
@@ -378,12 +378,12 @@ func TestCursorFieldsMap(t *testing.T) {
 	}
 	defer cursor.Close()
 
-	fields := cursor.FieldsMap
-	st.Equal(4, len(fields))
-	st.Equal(520, fields["RDB$DESCRIPTION"].TypeCode)
-	st.Equal(500, fields["RDB$RELATION_ID"].TypeCode)
-	st.Equal(452, fields["RDB$SECURITY_CLASS"].TypeCode)
-	st.Equal(452, fields["RDB$CHARACTER_SET_NAME"].TypeCode)
+	cols := cursor.ColumnsMap
+	st.Equal(4, len(cols))
+	st.Equal(520, cols["RDB$DESCRIPTION"].TypeCode)
+	st.Equal(500, cols["RDB$RELATION_ID"].TypeCode)
+	st.Equal(452, cols["RDB$SECURITY_CLASS"].TypeCode)
+	st.Equal(452, cols["RDB$CHARACTER_SET_NAME"].TypeCode)
 }
 
 func TestCursorFieldsWithAliasedFields(t *testing.T) {
@@ -403,12 +403,12 @@ func TestCursorFieldsWithAliasedFields(t *testing.T) {
 	}
 	defer cursor.Close()
 
-	fields := cursor.Fields
-	st.Equal(4, len(fields))
-	st.Equal("DES", fields[0].Name)
-	st.Equal("REL", fields[1].Name)
-	st.Equal("SEC", fields[2].Name)
-	st.Equal("RDB$CHARACTER_SET_NAME", fields[3].Name)
+	cols := cursor.Columns
+	st.Equal(4, len(cols))
+	st.Equal("DES", cols[0].Name)
+	st.Equal("REL", cols[1].Name)
+	st.Equal("SEC", cols[2].Name)
+	st.Equal("RDB$CHARACTER_SET_NAME", cols[3].Name)
 }
 
 func TestNextAfterEnd(t *testing.T) {

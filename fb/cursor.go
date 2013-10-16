@@ -30,8 +30,8 @@ type Cursor struct {
 	i_buffer_size C.long
 	o_buffer      *C.char
 	o_buffer_size C.long
-	Fields        []*Field
-	FieldsMap     map[string]*Field
+	Columns       []*Column
+	ColumnsMap    map[string]*Column
 	err           error
 	row, lastRow  []interface{}
 	lastRowMap    map[string]interface{}
@@ -179,8 +179,8 @@ func (cursor *Cursor) execute2(sql string, args ...interface{}) (rowsAffected in
 		}
 
 		// Set the description attributes
-		cursor.Fields = fieldsFromSqlda(cursor.o_sqlda, cursor.connection.database.LowercaseNames)
-		cursor.FieldsMap = fieldsMapFromSlice(cursor.Fields)
+		cursor.Columns = columnsFromSqlda(cursor.o_sqlda, cursor.connection.database.LowercaseNames)
+		cursor.ColumnsMap = columnsMapFromSlice(cursor.Columns)
 	} else {
 		// execute statement if not query
 		if statement == C.isc_info_sql_stmt_start_trans {
@@ -497,8 +497,8 @@ func (cursor *Cursor) fbCursorDrop() (err error) {
 
 func (cursor *Cursor) drop() (err error) {
 	err = cursor.fbCursorDrop()
-	cursor.Fields = nil
-	cursor.FieldsMap = nil
+	cursor.Columns = nil
+	cursor.ColumnsMap = nil
 	for i, c := range cursor.connection.cursors {
 		if c == cursor {
 			cursor.connection.cursors[i] = nil
@@ -555,41 +555,41 @@ func (cursor *Cursor) rowsAffected(statementType C.long) (int, error) {
 	return 0, nil
 }
 
-func fieldsFromSqlda(sqlda *C.XSQLDA, lowercaseNames bool) []*Field {
+func columnsFromSqlda(sqlda *C.XSQLDA, lowercaseNames bool) []*Column {
 	cols := sqlda.sqld
 	if cols == 0 {
 		return nil
 	}
 
-	ary := make([]*Field, cols)
+	ary := make([]*Column, cols)
 	for count := C.ISC_SHORT(0); count < cols; count++ {
-		var field Field
+		var col Column
 
 		sqlvar := C.sqlda_sqlvar(sqlda, count)
 		dtp := sqlvar.sqltype & ^1
 
 		if sqlvar.aliasname_length > 0 {
-			field.Name = C.GoStringN((*C.char)(unsafe.Pointer(&sqlvar.aliasname[0])), C.int(sqlvar.aliasname_length))
+			col.Name = C.GoStringN((*C.char)(unsafe.Pointer(&sqlvar.aliasname[0])), C.int(sqlvar.aliasname_length))
 		} else {
-			field.Name = C.GoStringN((*C.char)(unsafe.Pointer(&sqlvar.sqlname[0])), C.int(sqlvar.sqlname_length))
+			col.Name = C.GoStringN((*C.char)(unsafe.Pointer(&sqlvar.sqlname[0])), C.int(sqlvar.sqlname_length))
 		}
-		if lowercaseNames && !hasLowercase(field.Name) {
-			field.Name = strings.ToLower(field.Name)
+		if lowercaseNames && !hasLowercase(col.Name) {
+			col.Name = strings.ToLower(col.Name)
 		}
-		field.TypeCode = int(sqlvar.sqltype & ^1)
-		field.SqlType = sqlTypeFromCode(dtp, sqlvar.sqlsubtype)
-		field.SqlSubtype = int(sqlvar.sqlsubtype)
-		field.DisplaySize = int(sqlvar.sqllen)
+		col.TypeCode = int(sqlvar.sqltype & ^1)
+		col.SqlType = sqlTypeFromCode(dtp, sqlvar.sqlsubtype)
+		col.SqlSubtype = int(sqlvar.sqlsubtype)
+		col.Length = int(sqlvar.sqllen)
 		if dtp == C.SQL_VARYING {
-			field.InternalSize = int(sqlvar.sqllen + C.SHORT_SIZE)
+			col.InternalSize = int(sqlvar.sqllen + C.SHORT_SIZE)
 		} else {
-			field.InternalSize = int(sqlvar.sqllen)
+			col.InternalSize = int(sqlvar.sqllen)
 		}
-		field.Precision = precisionFromSqlvar(sqlvar)
-		field.Scale = int(sqlvar.sqlscale)
-		field.Nullable = (sqlvar.sqltype & 1) != 0
+		col.Precision = precisionFromSqlvar(sqlvar)
+		col.Scale = int(sqlvar.sqlscale)
+		col.Nullable = (sqlvar.sqltype & 1) != 0
 
-		ary[count] = &field
+		ary[count] = &col
 	}
 	return ary
 }
@@ -623,8 +623,8 @@ func (cursor *Cursor) Close() (err error) {
 		err = cursor.connection.Commit()
 		cursor.auto_transact = cursor.connection.transact
 	}
-	cursor.Fields = nil
-	cursor.FieldsMap = nil
+	cursor.Columns = nil
+	cursor.ColumnsMap = nil
 	return
 }
 
@@ -808,7 +808,7 @@ func (cursor *Cursor) Next() bool {
 				if cursor.err = fbErrorCheck(&isc_status); cursor.err != nil {
 					return false
 				}
-				if cursor.Fields[count].SqlSubtype == 1 {
+				if cursor.Columns[count].SqlSubtype == 1 {
 					val = string(bval)
 				} else {
 					val = bval
@@ -822,7 +822,7 @@ func (cursor *Cursor) Next() bool {
 
 func (cursor *Cursor) Row() []interface{} {
 	if cursor.lastRow == nil {
-		cursor.lastRow = make([]interface{}, len(cursor.Fields))
+		cursor.lastRow = make([]interface{}, len(cursor.Columns))
 		copy(cursor.lastRow, cursor.row)
 	}
 	return cursor.lastRow
@@ -830,9 +830,9 @@ func (cursor *Cursor) Row() []interface{} {
 
 func (cursor *Cursor) RowMap() map[string]interface{} {
 	if cursor.lastRowMap == nil {
-		cursor.lastRowMap = make(map[string]interface{}, len(cursor.Fields))
-		for i, field := range cursor.Fields {
-			cursor.lastRowMap[field.Name] = cursor.row[i]
+		cursor.lastRowMap = make(map[string]interface{}, len(cursor.Columns))
+		for i, col := range cursor.Columns {
+			cursor.lastRowMap[col.Name] = cursor.row[i]
 		}
 	}
 	return cursor.lastRowMap
