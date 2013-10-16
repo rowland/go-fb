@@ -204,3 +204,10 @@ func (conn *Connection) TableNames() (names []string, err error) {
 		ORDER BY RDB$RELATION_NAME`
 	return conn.names(sql)
 }
+
+func (conn *Connection) ViewNames() (names []string, err error) {
+	const sql = `SELECT RDB$RELATION_NAME FROM RDB$RELATIONS 
+		WHERE (RDB$SYSTEM_FLAG <> 1 OR RDB$SYSTEM_FLAG IS NULL) AND NOT RDB$VIEW_BLR IS NULL AND RDB$FLAGS = 1 
+		ORDER BY RDB$RELATION_NAME`
+	return conn.names(sql)
+}
