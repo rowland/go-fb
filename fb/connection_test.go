@@ -252,3 +252,61 @@ func TestRoleNamesLower(t *testing.T) {
 	st.Equal("reader", roleNames[0])
 	st.Equal("writer", roleNames[1])
 }
+
+func TestProcedureNames(t *testing.T) {
+	st := SuperTest{t}
+	const sqlSchema = `
+		CREATE PROCEDURE PLUSONE(NUM1 INTEGER) RETURNS (NUM2 INTEGER) AS
+		BEGIN
+		  NUM2 = NUM1 + 1;
+		  SUSPEND;
+		END;
+	`
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	if _, err = conn.Execute(sqlSchema); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	procNames, err := conn.ProcedureNames()
+	if err != nil {
+		t.Fatal(err)
+	}
+	st.MustEqual(1, len(procNames))
+	st.Equal("PLUSONE", procNames[0])
+}
+
+func TestProcedureNamesLower(t *testing.T) {
+	st := SuperTest{t}
+	const sqlSchema = `
+		CREATE PROCEDURE PLUSONE(NUM1 INTEGER) RETURNS (NUM2 INTEGER) AS
+		BEGIN
+		  NUM2 = NUM1 + 1;
+		  SUSPEND;
+		END;
+	`
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionStringLowerNames)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	if _, err = conn.Execute(sqlSchema); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	procNames, err := conn.ProcedureNames()
+	if err != nil {
+		t.Fatal(err)
+	}
+	st.MustEqual(1, len(procNames))
+	st.Equal("plusone", procNames[0])
+}

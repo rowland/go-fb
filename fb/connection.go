@@ -223,3 +223,8 @@ func (conn *Connection) RoleNames() (names []string, err error) {
 	const sql = "SELECT RDB$ROLE_NAME FROM RDB$ROLES WHERE RDB$SYSTEM_FLAG = 0 ORDER BY RDB$ROLE_NAME"
 	return conn.names(sql)
 }
+
+func (conn *Connection) ProcedureNames() (names []string, err error) {
+	const sql = "SELECT RDB$PROCEDURE_NAME FROM RDB$PROCEDURES ORDER BY RDB$PROCEDURE_NAME"
+	return conn.names(sql)
+}
