@@ -3,6 +3,8 @@ package fb
 /*
 #cgo darwin CFLAGS: -D_XOPEN_SOURCE -D_DARWIN_C_SOURCE -I/Library/Frameworks/Firebird.framework/Headers
 #cgo darwin LDFLAGS: -L. -arch x86_64 -framework Firebird
+#cgo !darwin CFLAGS: -I/usr/include
+#cgo !darwin LDFLAGS: -lfbclient
 
 #include "fb.h"
 #include <ibase.h>
