@@ -521,12 +521,12 @@ func (cursor *Cursor) rowsAffected(statementType C.long) (int, error) {
 	if response[0] != C.isc_info_sql_records {
 		return -1, nil
 	}
-	var r C.short = 3 // skip past first cluster
+	r := 3 // skip past first cluster
 	for response[r] != C.isc_info_end {
 		countType := response[r]
 		r++
-		len := C.short(C.isc_vax_integer(&response[r], C.short(unsafe.Sizeof(r))))
-		r += C.short(unsafe.Sizeof(r))
+		len := C.short(C.isc_vax_integer(&response[r], C.SHORT_SIZE))
+		r += C.SHORT_SIZE
 		switch countType {
 		case C.isc_info_req_insert_count:
 			inserted = int(C.isc_vax_integer(&response[r], len))
@@ -537,7 +537,7 @@ func (cursor *Cursor) rowsAffected(statementType C.long) (int, error) {
 		case C.isc_info_req_delete_count:
 			deleted = int(C.isc_vax_integer(&response[r], len))
 		}
-		r += len
+		r += int(len)
 	}
 	switch statementType {
 	case C.isc_info_sql_stmt_select:
