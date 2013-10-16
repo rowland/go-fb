@@ -29,6 +29,12 @@ func (st *SuperTest) True(actual bool) {
 	}
 }
 
+func (st *SuperTest) Nil(actual interface{}) {
+	if actual != nil {
+		st.fail(nil, actual)
+	}
+}
+
 func (st *SuperTest) fail(expected, actual interface{}) {
 	pc, file, line, ok := runtime.Caller(2)
 	var name string
@@ -43,5 +49,5 @@ func (st *SuperTest) fail(expected, actual interface{}) {
 		file = "unknown file"
 		line = 1
 	}
-	st.Errorf("\t%s:%d: %s: Expected %v, got %v\n", file, line, name, expected, actual)	
+	st.Errorf("\t%s:%d: %s: Expected %v, got %v\n", file, line, name, expected, actual)
 }

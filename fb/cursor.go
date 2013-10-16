@@ -34,6 +34,7 @@ type Cursor struct {
 	FieldsMap     map[string]*Field
 	err           error
 	row, lastRow  []interface{}
+	lastRowMap    map[string]interface{}
 }
 
 const sqlda_colsinit = 50
@@ -700,7 +701,7 @@ func (cursor *Cursor) Next() bool {
 	if len(cursor.row) < int(cols) {
 		cursor.row = make([]interface{}, cols)
 	}
-	cursor.lastRow = nil
+	cursor.lastRow, cursor.lastRowMap = nil, nil
 	// set result value for each column
 	for count := C.ISC_SHORT(0); count < cols; count++ {
 		var val interface{}
@@ -825,6 +826,16 @@ func (cursor *Cursor) Row() []interface{} {
 		copy(cursor.lastRow, cursor.row)
 	}
 	return cursor.lastRow
+}
+
+func (cursor *Cursor) RowMap() map[string]interface{} {
+	if cursor.lastRowMap == nil {
+		cursor.lastRowMap = make(map[string]interface{}, len(cursor.Fields))
+		for i, field := range cursor.Fields {
+			cursor.lastRowMap[field.Name] = cursor.row[i]
+		}
+	}
+	return cursor.lastRowMap
 }
 
 func (cursor *Cursor) Scan(dest ...interface{}) error {

@@ -41,6 +41,118 @@ func TestNextRow(t *testing.T) {
 	st.Equal("NONE", strings.TrimSpace(row[3].(string)))
 }
 
+var sqlSampleSchema = `CREATE TABLE TEST (
+	ID BIGINT,
+	FLAG INTEGER CHECK ((FLAG IN (0,1)) OR (FLAG IS NULL)),
+	BINARY BLOB,
+	I INTEGER,
+	I32 INTEGER,
+	I64 BIGINT,
+	F32 FLOAT,
+	F64 DOUBLE PRECISION,
+	C CHAR,
+	CS CHAR(26),
+	V VARCHAR(1),
+	VS VARCHAR(26),
+	M BLOB SUB_TYPE TEXT,
+	DT DATE,
+	TM TIME,
+	TS TIMESTAMP);`
+var sqlSampleInsert = `INSERT INTO TEST VALUES (
+	1,
+	1,
+	'BINARY BLOB CONTENTS',
+	123,
+	1234,
+	1234567890,
+	123.24,
+	123456789.24,
+	'A',
+	'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+	'A',
+	'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+	'TEXT BLOB CONTENTS',
+	'2013-10-10',
+	'08:42:00',
+	'2013-10-10 08:42:00');`
+
+func TestRowMap(t *testing.T) {
+	st := SuperTest{t}
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	sqlInsert2 := "INSERT INTO TEST (ID) VALUES (2);"
+	sqlSelect := "SELECT * FROM TEST;"
+	dtExpected := time.Date(2013, 10, 10, 0, 0, 0, 0, conn.Location)
+	tmExpected := time.Date(1970, 1, 1, 8, 42, 0, 0, conn.Location)
+	tsExpected := time.Date(2013, 10, 10, 8, 42, 0, 0, conn.Location)
+
+	if _, err = conn.Execute(sqlSampleSchema); err != nil {
+		t.Fatalf("Error executing schema: %s", err)
+	}
+
+	if _, err = conn.Execute(sqlSampleInsert); err != nil {
+		t.Fatalf("Error executing insert: %s", err)
+	}
+	if _, err = conn.Execute(sqlInsert2); err != nil {
+		t.Fatalf("Error executing insert: %s", err)
+	}
+
+	var cursor *Cursor
+	if cursor, err = conn.Execute(sqlSelect); err != nil {
+		t.Fatalf("Unexpected error in select: %s", err)
+	}
+	defer cursor.Close()
+
+	if !cursor.Next() {
+		t.Fatalf("Error in Next: %v", cursor.Err())
+	}
+	row := cursor.RowMap()
+
+	st.Equal(int64(1), row["ID"])
+	st.Equal(int32(1), row["FLAG"])
+	st.Equal("BINARY BLOB CONTENTS", string(row["BINARY"].([]byte)))
+	st.Equal(int32(123), row["I"])
+	st.Equal(int32(1234), row["I32"])
+	st.Equal(int64(1234567890), row["I64"])
+	st.Equal(float32(123.24), row["F32"])
+	st.Equal(123456789.24, row["F64"])
+	st.Equal("A", row["C"])
+	st.Equal("ABCDEFGHIJKLMNOPQRSTUVWXYZ", row["CS"])
+	st.Equal("A", row["V"])
+	st.Equal("ABCDEFGHIJKLMNOPQRSTUVWXYZ", row["VS"])
+	st.Equal("TEXT BLOB CONTENTS", row["M"])
+	st.Equal(dtExpected, row["DT"])
+	st.Equal(tmExpected, row["TM"])
+	st.Equal(tsExpected, row["TS"])
+
+	if !cursor.Next() {
+		t.Fatalf("Error in Next: %v", cursor.Err())
+	}
+	row = cursor.RowMap()
+
+	st.Nil(row["FLAG"])
+	st.Nil(row["BINARY"])
+	st.Nil(row["I"])
+	st.Nil(row["I32"])
+	st.Nil(row["I64"])
+	st.Nil(row["F32"])
+	st.Nil(row["F64"])
+	st.Nil(row["C"])
+	st.Nil(row["CS"])
+	st.Nil(row["V"])
+	st.Nil(row["VS"])
+	st.Nil(row["M"])
+	st.Nil(row["DT"])
+	st.Nil(row["TM"])
+	st.Nil(row["TS"])
+}
+
 func TestScan(t *testing.T) {
 	st := SuperTest{t}
 	os.Remove(TestFilename)
@@ -51,51 +163,17 @@ func TestScan(t *testing.T) {
 	}
 	defer conn.Drop()
 
-	sqlSchema := `CREATE TABLE TEST (
-		ID BIGINT,
-		FLAG INTEGER CHECK ((FLAG IN (0,1)) OR (FLAG IS NULL)),
-		BINARY BLOB,
-		I INTEGER,
-		I32 INTEGER,
-		I64 BIGINT,
-		F32 FLOAT,
-		F64 DOUBLE PRECISION,
-		C CHAR,
-		CS CHAR(26),
-		V VARCHAR(1),
-		VS VARCHAR(26),
-		M BLOB SUB_TYPE TEXT,
-		DT DATE,
-		TM TIME,
-		TS TIMESTAMP);`
-	sqlInsert := `INSERT INTO TEST VALUES (
-		1,
-		1,
-		'BINARY BLOB CONTENTS',
-		123,
-		1234,
-		1234567890,
-		123.24,
-		123456789.24,
-		'A',
-		'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
-		'A',
-		'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
-		'TEXT BLOB CONTENTS',
-		'2013-10-10',
-		'08:42:00',
-		'2013-10-10 08:42:00');`
 	sqlInsert2 := "INSERT INTO TEST (ID) VALUES (2);"
 	sqlSelect := "SELECT * FROM TEST;"
 	dtExpected := time.Date(2013, 10, 10, 0, 0, 0, 0, conn.Location)
 	tmExpected := time.Date(1970, 1, 1, 8, 42, 0, 0, conn.Location)
 	tsExpected := time.Date(2013, 10, 10, 8, 42, 0, 0, conn.Location)
 
-	if _, err = conn.Execute(sqlSchema); err != nil {
+	if _, err = conn.Execute(sqlSampleSchema); err != nil {
 		t.Fatalf("Error executing schema: %s", err)
 	}
 
-	if _, err = conn.Execute(sqlInsert); err != nil {
+	if _, err = conn.Execute(sqlSampleInsert); err != nil {
 		t.Fatalf("Error executing insert: %s", err)
 	}
 	if _, err = conn.Execute(sqlInsert2); err != nil {
