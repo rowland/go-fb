@@ -114,7 +114,7 @@ func TestViewNames(t *testing.T) {
 	st.Equal("VIEW2", viewNames[1])
 }
 
-func TestViewNamesLow(t *testing.T) {
+func TestViewNamesLower(t *testing.T) {
 	st := SuperTest{t}
 	const sqlSchema = `
 		CREATE TABLE TEST1 (ID INT, NAME1 VARCHAR(10));
@@ -141,4 +141,58 @@ func TestViewNamesLow(t *testing.T) {
 	st.MustEqual(2, len(viewNames))
 	st.Equal("view1", viewNames[0])
 	st.Equal("view2", viewNames[1])
+}
+
+func TestGeneratorNames(t *testing.T) {
+	st := SuperTest{t}
+	const sqlSchema = `
+		CREATE GENERATOR TEST1_SEQ;
+		CREATE GENERATOR TEST2_SEQ;
+	`
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	if err = conn.ExecuteScript(sqlSchema); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	genNames, err := conn.GeneratorNames()
+	if err != nil {
+		t.Fatal(err)
+	}
+	st.MustEqual(2, len(genNames))
+	st.Equal("TEST1_SEQ", genNames[0])
+	st.Equal("TEST2_SEQ", genNames[1])
+}
+
+func TestGeneratorNamesLower(t *testing.T) {
+	st := SuperTest{t}
+	const sqlSchema = `
+		CREATE GENERATOR TEST1_SEQ;
+		CREATE GENERATOR TEST2_SEQ;
+	`
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString + "lowercase_names=true;")
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	if err = conn.ExecuteScript(sqlSchema); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	genNames, err := conn.GeneratorNames()
+	if err != nil {
+		t.Fatal(err)
+	}
+	st.MustEqual(2, len(genNames))
+	st.Equal("test1_seq", genNames[0])
+	st.Equal("test2_seq", genNames[1])
 }

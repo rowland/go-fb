@@ -211,3 +211,10 @@ func (conn *Connection) ViewNames() (names []string, err error) {
 		ORDER BY RDB$RELATION_NAME`
 	return conn.names(sql)
 }
+
+func (conn *Connection) GeneratorNames() (names []string, err error) {
+	const sql = `SELECT RDB$GENERATOR_NAME FROM RDB$GENERATORS 
+		WHERE (RDB$SYSTEM_FLAG IS NULL OR RDB$SYSTEM_FLAG <> 1) 
+		ORDER BY RDB$GENERATOR_NAME`
+	return conn.names(sql)
+}
