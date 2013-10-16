@@ -19,8 +19,10 @@ ISC_STATUS isc_start_transaction2(ISC_STATUS* isc_status,
 import "C"
 
 import (
+	"io"
 	"strings"
 	"time"
+	"unicode"
 	"unsafe"
 )
 
@@ -110,6 +112,9 @@ func (conn *Connection) ExecuteScript(sql string) (err error) {
 	// TODO: handle "set term"
 	script := strings.Split(sql, ";")
 	for _, stmt := range script {
+		if strings.TrimSpace(stmt) == "" {
+			continue
+		}
 		_, err = conn.Execute(stmt)
 		if err != nil {
 			return
@@ -167,4 +172,35 @@ func (conn *Connection) Rollback() (err error) {
 		err = fbErrorCheck(&isc_status)
 	}
 	return
+}
+
+func (conn *Connection) names(sql string) (names []string, err error) {
+	var cursor *Cursor
+	if cursor, err = conn.Execute(sql); err != nil {
+		return
+	}
+	defer cursor.Close()
+
+	for cursor.Next() {
+		var name string
+		if err = cursor.Scan(&name); err != nil {
+			return
+		}
+		name = strings.TrimRightFunc(name, unicode.IsSpace)
+		if conn.database.LowercaseNames && !hasLowercase(name) {
+			name = strings.ToLower(name)
+		}
+		names = append(names, name)
+	}
+	if cursor.Err() != io.EOF {
+		err = cursor.Err()
+	}
+	return
+}
+
+func (conn *Connection) TableNames() (names []string, err error) {
+	const sql = `SELECT RDB$RELATION_NAME FROM RDB$RELATIONS 
+		WHERE (RDB$SYSTEM_FLAG <> 1 OR RDB$SYSTEM_FLAG IS NULL) AND RDB$VIEW_BLR IS NULL 
+		ORDER BY RDB$RELATION_NAME`
+	return conn.names(sql)
 }

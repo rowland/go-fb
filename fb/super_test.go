@@ -13,29 +13,35 @@ type SuperTest struct {
 
 func (st *SuperTest) Equal(expected interface{}, actual interface{}) {
 	if expected != actual {
-		st.fail(expected, actual)
+		st.fail(expected, actual, false)
+	}
+}
+
+func (st *SuperTest) MustEqual(expected interface{}, actual interface{}) {
+	if expected != actual {
+		st.fail(expected, actual, true)
 	}
 }
 
 func (st *SuperTest) False(actual bool) {
 	if actual {
-		st.fail(false, true)
+		st.fail(false, true, false)
 	}
 }
 
 func (st *SuperTest) True(actual bool) {
 	if !actual {
-		st.fail(true, false)
+		st.fail(true, false, false)
 	}
 }
 
 func (st *SuperTest) Nil(actual interface{}) {
 	if actual != nil {
-		st.fail(nil, actual)
+		st.fail(nil, actual, false)
 	}
 }
 
-func (st *SuperTest) fail(expected, actual interface{}) {
+func (st *SuperTest) fail(expected, actual interface{}, must bool) {
 	pc, file, line, ok := runtime.Caller(2)
 	var name string
 	if ok {
@@ -49,5 +55,9 @@ func (st *SuperTest) fail(expected, actual interface{}) {
 		file = "unknown file"
 		line = 1
 	}
-	st.Errorf("\t%s:%d: %s: Expected %v, got %v\n", file, line, name, expected, actual)
+	if must {
+		st.Fatalf("\t%s:%d: %s: Expected %v, got %v\n", file, line, name, expected, actual)
+	} else {
+		st.Errorf("\t%s:%d: %s: Expected %v, got %v\n", file, line, name, expected, actual)
+	}
 }

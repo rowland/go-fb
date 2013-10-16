@@ -36,3 +36,45 @@ func TestExecute(t *testing.T) {
 		t.Fatal("Transaction should not be started after transaction is committed.")
 	}
 }
+
+func TestTableNames(t *testing.T) {
+	st := SuperTest{t}
+	const sqlSchema = "CREATE TABLE TEST1 (ID INTEGER); CREATE TABLE TEST2 (ID INTEGER);"
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	if err = conn.ExecuteScript(sqlSchema); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	tableNames, err := conn.TableNames()
+	st.MustEqual(2, len(tableNames))
+	st.Equal("TEST1", tableNames[0])
+	st.Equal("TEST2", tableNames[1])
+}
+
+func TestTableNamesLower(t *testing.T) {
+	st := SuperTest{t}
+	const sqlSchema = "CREATE TABLE TEST1 (ID INTEGER); CREATE TABLE TEST2 (ID INTEGER);"
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString + "lowercase_names=true;")
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	if err = conn.ExecuteScript(sqlSchema); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	tableNames, err := conn.TableNames()
+	st.MustEqual(2, len(tableNames))
+	st.Equal("test1", tableNames[0])
+	st.Equal("test2", tableNames[1])
+}
