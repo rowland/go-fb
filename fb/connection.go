@@ -228,3 +228,8 @@ func (conn *Connection) ProcedureNames() (names []string, err error) {
 	const sql = "SELECT RDB$PROCEDURE_NAME FROM RDB$PROCEDURES ORDER BY RDB$PROCEDURE_NAME"
 	return conn.names(sql)
 }
+
+func (conn *Connection) TriggerNames() (names []string, err error) {
+	const sql = "SELECT RDB$TRIGGER_NAME FROM RDB$TRIGGERS WHERE RDB$SYSTEM_FLAG = 0 ORDER BY RDB$TRIGGER_NAME"
+	return conn.names(sql)
+}

@@ -310,3 +310,75 @@ func TestProcedureNamesLower(t *testing.T) {
 	st.MustEqual(1, len(procNames))
 	st.Equal("plusone", procNames[0])
 }
+
+func TestTriggerNames(t *testing.T) {
+	st := SuperTest{t}
+	const sqlSchema = `
+		CREATE TABLE TEST (ID INT, NAME VARCHAR(20));
+		CREATE GENERATOR TEST_SEQ;
+	`
+	const triggerSchema = `
+		CREATE TRIGGER TEST_INSERT FOR TEST ACTIVE BEFORE INSERT AS
+		BEGIN
+			IF (NEW.ID IS NULL) THEN
+				NEW.ID = CAST(GEN_ID(TEST_SEQ, 1) AS INT);
+		END
+	`
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	if err = conn.ExecuteScript(sqlSchema); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if _, err = conn.Execute(triggerSchema); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	triggerNames, err := conn.TriggerNames()
+	if err != nil {
+		t.Fatal(err)
+	}
+	st.MustEqual(1, len(triggerNames))
+	st.Equal("TEST_INSERT", triggerNames[0])
+}
+
+func TestTriggerNamesLower(t *testing.T) {
+	st := SuperTest{t}
+	const sqlSchema = `
+		CREATE TABLE TEST (ID INT, NAME VARCHAR(20));
+		CREATE GENERATOR TEST_SEQ;
+	`
+	const triggerSchema = `
+		CREATE TRIGGER TEST_INSERT FOR TEST ACTIVE BEFORE INSERT AS
+		BEGIN
+			IF (NEW.ID IS NULL) THEN
+				NEW.ID = CAST(GEN_ID(TEST_SEQ, 1) AS INT);
+		END
+	`
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionStringLowerNames)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	if err = conn.ExecuteScript(sqlSchema); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+	if _, err = conn.Execute(triggerSchema); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	triggerNames, err := conn.TriggerNames()
+	if err != nil {
+		t.Fatal(err)
+	}
+	st.MustEqual(1, len(triggerNames))
+	st.Equal("test_insert", triggerNames[0])
+}
