@@ -41,23 +41,6 @@ func TestNextRow(t *testing.T) {
 	st.Equal("NONE", strings.TrimSpace(row[3].(string)))
 }
 
-var sqlSampleSchema = `CREATE TABLE TEST (
-	ID BIGINT,
-	FLAG INTEGER CHECK ((FLAG IN (0,1)) OR (FLAG IS NULL)),
-	BINARY BLOB,
-	I INTEGER,
-	I32 INTEGER,
-	I64 BIGINT,
-	F32 FLOAT,
-	F64 DOUBLE PRECISION,
-	C CHAR,
-	CS CHAR(26),
-	V VARCHAR(1),
-	VS VARCHAR(26),
-	M BLOB SUB_TYPE TEXT,
-	DT DATE,
-	TM TIME,
-	TS TIMESTAMP);`
 var sqlSampleInsert = `INSERT INTO TEST VALUES (
 	1,
 	1,
@@ -74,7 +57,9 @@ var sqlSampleInsert = `INSERT INTO TEST VALUES (
 	'TEXT BLOB CONTENTS',
 	'2013-10-10',
 	'08:42:00',
-	'2013-10-10 08:42:00');`
+	'2013-10-10 08:42:00',
+	5.55,
+	30303.33);`
 
 func TestRowMap(t *testing.T) {
 	st := SuperTest{t}
@@ -86,13 +71,13 @@ func TestRowMap(t *testing.T) {
 	}
 	defer conn.Drop()
 
-	sqlInsert2 := "INSERT INTO TEST (ID) VALUES (2);"
+	sqlInsert2 := "INSERT INTO TEST (ID, I32, F64) VALUES (2, null, null);"
 	sqlSelect := "SELECT * FROM TEST;"
 	dtExpected := time.Date(2013, 10, 10, 0, 0, 0, 0, conn.Location)
 	tmExpected := time.Date(1970, 1, 1, 8, 42, 0, 0, conn.Location)
 	tsExpected := time.Date(2013, 10, 10, 8, 42, 0, 0, conn.Location)
 
-	if _, err = conn.Execute(sqlSampleSchema); err != nil {
+	if err = conn.ExecuteScript(sqlSampleSchema); err != nil {
 		t.Fatalf("Error executing schema: %s", err)
 	}
 
@@ -130,6 +115,8 @@ func TestRowMap(t *testing.T) {
 	st.Equal(dtExpected, row["DT"])
 	st.Equal(tmExpected, row["TM"])
 	st.Equal(tsExpected, row["TS"])
+	st.Equal(5.55, row["N92"])
+	st.Equal(30303.33, row["D92"])
 
 	if !cursor.Next() {
 		t.Fatalf("Error in Next: %v", cursor.Err())
@@ -163,13 +150,13 @@ func TestScan(t *testing.T) {
 	}
 	defer conn.Drop()
 
-	sqlInsert2 := "INSERT INTO TEST (ID) VALUES (2);"
+	sqlInsert2 := "INSERT INTO TEST (ID, I32, F64) VALUES (2, null, null);"
 	sqlSelect := "SELECT * FROM TEST;"
 	dtExpected := time.Date(2013, 10, 10, 0, 0, 0, 0, conn.Location)
 	tmExpected := time.Date(1970, 1, 1, 8, 42, 0, 0, conn.Location)
 	tsExpected := time.Date(2013, 10, 10, 8, 42, 0, 0, conn.Location)
 
-	if _, err = conn.Execute(sqlSampleSchema); err != nil {
+	if err = conn.ExecuteScript(sqlSampleSchema); err != nil {
 		t.Fatalf("Error executing schema: %s", err)
 	}
 
@@ -207,6 +194,8 @@ func TestScan(t *testing.T) {
 		dt     time.Time
 		tm     time.Time
 		ts     time.Time
+		n92    float64
+		d92    float64
 	)
 
 	var (
@@ -225,9 +214,11 @@ func TestScan(t *testing.T) {
 		ndt     NullableTime
 		ntm     NullableTime
 		nts     NullableTime
+		nn92    NullableFloat64
+		nd92    NullableFloat64
 	)
 
-	if err = cursor.Scan(&id, &flag, &binary, &i, &i32, &i64, &f32, &f64, &c, &cs, &v, &vs, &m, &dt, &tm, &ts); err != nil {
+	if err = cursor.Scan(&id, &flag, &binary, &i, &i32, &i64, &f32, &f64, &c, &cs, &v, &vs, &m, &dt, &tm, &ts, &n92, &d92); err != nil {
 		t.Fatal(err)
 	}
 
@@ -247,8 +238,10 @@ func TestScan(t *testing.T) {
 	st.Equal(dtExpected, dt)
 	st.Equal(tmExpected, tm)
 	st.Equal(tsExpected, ts)
+	st.Equal(5.55, n92)
+	st.Equal(30303.33, d92)
 
-	if err = cursor.Scan(&id, &nflag, &nbinary, &ni, &ni32, &ni64, &nf32, &nf64, &nc, &ncs, &nv, &nvs, &nm, &ndt, &ntm, &nts); err != nil {
+	if err = cursor.Scan(&id, &nflag, &nbinary, &ni, &ni32, &ni64, &nf32, &nf64, &nc, &ncs, &nv, &nvs, &nm, &ndt, &ntm, &nts, &nn92, &nd92); err != nil {
 		t.Fatal(err)
 	}
 
@@ -267,6 +260,8 @@ func TestScan(t *testing.T) {
 	st.False(ndt.Null)
 	st.False(ntm.Null)
 	st.False(nts.Null)
+	st.False(nn92.Null)
+	st.False(nd92.Null)
 
 	st.Equal(true, nflag.Value)
 	st.Equal("BINARY BLOB CONTENTS", string(nbinary.Value))
@@ -283,15 +278,17 @@ func TestScan(t *testing.T) {
 	st.Equal(dtExpected, ndt.Value)
 	st.Equal(tmExpected, ntm.Value)
 	st.Equal(tsExpected, nts.Value)
+	st.Equal(5.55, nn92.Value)
+	st.Equal(30303.33, nd92.Value)
 
 	if !cursor.Next() {
 		t.Fatalf("Error in Next: %v", cursor.Err())
 	}
-	if err = cursor.Scan(&id, &flag, &binary, &i, &i32, &i64, &f32, &f64, &c, &cs, &v, &vs, &m, &dt, &tm, &ts); err == nil {
+	if err = cursor.Scan(&id, &flag, &binary, &i, &i32, &i64, &f32, &f64, &c, &cs, &v, &vs, &m, &dt, &tm, &ts, &n92, &d92); err == nil {
 		t.Fatal("Scan expected to fail")
 	}
 
-	if err = cursor.Scan(&id, &nflag, &nbinary, &ni, &ni32, &ni64, &nf32, &nf64, &nc, &ncs, &nv, &nvs, &nm, &ndt, &ntm, &nts); err != nil {
+	if err = cursor.Scan(&id, &nflag, &nbinary, &ni, &ni32, &ni64, &nf32, &nf64, &nc, &ncs, &nv, &nvs, &nm, &ndt, &ntm, &nts, &nn92, &nd92); err != nil {
 		t.Fatal(err)
 	}
 	st.True(nflag.Null)
@@ -309,6 +306,8 @@ func TestScan(t *testing.T) {
 	st.True(ndt.Null)
 	st.True(ntm.Null)
 	st.True(nts.Null)
+	st.True(nn92.Null)
+	st.True(nd92.Null)
 }
 
 func TestCursorFields(t *testing.T) {

@@ -233,3 +233,56 @@ func (conn *Connection) TriggerNames() (names []string, err error) {
 	const sql = "SELECT RDB$TRIGGER_NAME FROM RDB$TRIGGERS WHERE RDB$SYSTEM_FLAG = 0 ORDER BY RDB$TRIGGER_NAME"
 	return conn.names(sql)
 }
+
+const sqlColumns = `
+	SELECT r.rdb$field_name, r.rdb$field_source, f.rdb$field_type, f.rdb$field_sub_type,
+		f.rdb$field_length, f.rdb$field_precision, f.rdb$field_scale,
+		COALESCE(r.rdb$default_source, f.rdb$default_source) rdb$default_source,
+		COALESCE(r.rdb$null_flag, f.rdb$null_flag) rdb$null_flag
+	FROM rdb$relation_fields r
+	JOIN rdb$fields f ON r.rdb$field_source = f.rdb$field_name
+	WHERE r.rdb$relation_name = ?
+	ORDER BY r.rdb$field_position`
+
+func (conn *Connection) Columns(tableName string) (columns []*Column, err error) {
+	var cursor *Cursor
+	if cursor, err = conn.Execute(sqlColumns, tableName); err != nil {
+		return
+	}
+	defer cursor.Close()
+
+	for cursor.Next() {
+		var col Column
+		var sqlType int16
+		if err = cursor.Scan(
+			&col.Name,
+			&col.Domain,
+			&sqlType,
+			&col.SqlSubtype,
+			&col.Length,
+			&col.Precision,
+			&col.Scale,
+			&col.Default,
+			&col.Nullable); err != nil {
+			return
+		}
+		col.Name = strings.TrimRightFunc(col.Name, unicode.IsSpace)
+		if conn.database.LowercaseNames && !hasLowercase(col.Name) {
+			col.Name = strings.ToLower(col.Name)
+		}
+		col.Domain = strings.TrimRightFunc(col.Domain, unicode.IsSpace)
+		if strings.HasPrefix(col.Domain, "RDB$") {
+			col.Domain = ""
+		}
+		col.SqlType = sqlTypeFromCode(int(sqlType), int(col.SqlSubtype.Value))
+		if !col.Default.Null {
+			col.Default.Value = strings.Replace(col.Default.Value, "DEFAULT ", "", 1)
+			col.Default.Value = strings.TrimLeftFunc(col.Default.Value, unicode.IsSpace)
+		}
+		columns = append(columns, &col)
+	}
+	if cursor.Err() != io.EOF {
+		err = cursor.Err()
+	}
+	return
+}

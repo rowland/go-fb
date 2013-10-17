@@ -126,6 +126,10 @@ func int64FromIf(v interface{}) (i int64, err error) {
 		i = int64(v)
 	case *int32:
 		i = int64(*v)
+	case int16:
+		i = int64(v)
+	case *int16:
+		i = int64(*v)
 	case int:
 		i = int64(v)
 	case *int:
@@ -154,6 +158,19 @@ func int32FromIf(v interface{}) (i int32, err error) {
 		err = fmt.Errorf("Value %d is out of range %d - %d", i64, int32min, int32max)
 	} else {
 		i = int32(i64)
+	}
+	return
+}
+
+func int16FromIf(v interface{}) (i int16, err error) {
+	var i64 int64
+	if i64, err = int64FromIf(v); err != nil {
+		return
+	}
+	if i64 > int16max || i64 < int16min {
+		err = fmt.Errorf("Value %d is out of range %d - %d", i64, int16min, int16max)
+	} else {
+		i = int16(i64)
 	}
 	return
 }
@@ -205,6 +222,10 @@ func stringFromIf(v interface{}) (s string, err error) {
 	case int32:
 		s = strconv.FormatInt(int64(v), 10)
 	case *int32:
+		s = strconv.FormatInt(int64(*v), 10)
+	case int16:
+		s = strconv.FormatInt(int64(v), 10)
+	case *int16:
 		s = strconv.FormatInt(int64(*v), 10)
 	case int:
 		s = strconv.FormatInt(int64(v), 10)
@@ -261,6 +282,8 @@ func ConvertValue(dest, src interface{}) (err error) {
 		*d, err = bytesFromIf(src)
 	case *int:
 		*d, err = intFromIf(src)
+	case *int16:
+		*d, err = int16FromIf(src)
 	case *int32:
 		*d, err = int32FromIf(src)
 	case *int64:

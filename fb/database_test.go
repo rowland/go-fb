@@ -17,6 +17,30 @@ const (
 	CreateStatement       = "CREATE DATABASE 'localhost:/var/fbdata/go-fb-test.fdb' USER 'gotest' PASSWORD 'gotest' PAGE_SIZE = 1024 DEFAULT CHARACTER SET NONE;"
 )
 
+const sqlSampleSchema = `
+	CREATE DOMAIN ALPHA VARCHAR(26);
+	CREATE DOMAIN ALPHABET CHAR(26);
+	CREATE DOMAIN BOOLEAN INTEGER CHECK ((VALUE IN (0,1)) OR (VALUE IS NULL));
+	CREATE TABLE TEST (
+		ID BIGINT PRIMARY KEY NOT NULL,
+		FLAG BOOLEAN,
+		BINARY BLOB,
+		I INTEGER,
+		I32 INTEGER DEFAULT 0,
+		I64 BIGINT,
+		F32 FLOAT,
+		F64 DOUBLE PRECISION DEFAULT    0.0,
+		C CHAR,
+		CS ALPHABET,
+		V VARCHAR(1),
+		VS ALPHA,
+		M BLOB SUB_TYPE TEXT,
+		DT DATE,
+		TM TIME,
+		TS TIMESTAMP,
+		N92 NUMERIC(9,2),
+		D92 DECIMAL(9,2));`
+
 func TestMapFromConnectionString(t *testing.T) {
 	m, err := MapFromConnectionString(TestConnectionString)
 	if err != nil {

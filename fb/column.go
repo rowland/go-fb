@@ -4,12 +4,12 @@ type Column struct {
 	Name         string
 	Domain       string
 	SqlType      string
-	SqlSubtype   int
-	Length       int // DisplaySize
-	Precision    int
-	Scale        int
-	Default      *string
-	Nullable     bool
+	SqlSubtype   NullableInt16
+	Length       int16 // DisplaySize
+	Precision    NullableInt16
+	Scale        int16
+	Default      NullableString
+	Nullable     NullableBool
 	TypeCode     int
 	InternalSize int
 }

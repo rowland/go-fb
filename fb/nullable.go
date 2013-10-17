@@ -60,6 +60,20 @@ func (n *NullableFloat64) Scan(value interface{}) error {
 	return ConvertValue(&n.Value, value)
 }
 
+type NullableInt16 struct {
+	Value int16
+	Null  bool
+}
+
+func (n *NullableInt16) Scan(value interface{}) error {
+	if value == nil {
+		n.Value, n.Null = 0, true
+		return nil
+	}
+	n.Null = false
+	return ConvertValue(&n.Value, value)
+}
+
 type NullableInt32 struct {
 	Value int32
 	Null  bool

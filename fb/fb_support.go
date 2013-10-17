@@ -130,7 +130,7 @@ func iscTimeFromTime(t time.Time, loc *time.Location) (tm C.ISC_TIME) {
 	return
 }
 
-func sqlTypeFromCode(code, subType C.ISC_SHORT) string {
+func sqlTypeFromCode(code, subType int) string {
 	switch code {
 	case C.SQL_TEXT, C.blr_text:
 		return "CHAR"
@@ -193,7 +193,7 @@ func sqlTypeFromCode(code, subType C.ISC_SHORT) string {
 	return fmt.Sprintf("UNKNOWN %d, %d", code, subType)
 }
 
-func precisionFromSqlvar(sqlvar *C.XSQLVAR) int {
+func precisionFromSqlvar(sqlvar *C.XSQLVAR) int16 {
 	switch sqlvar.sqltype & ^1 {
 	case C.SQL_SHORT:
 		switch sqlvar.sqlsubtype {

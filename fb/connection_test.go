@@ -2,6 +2,7 @@ package fb
 
 import (
 	"os"
+	"reflect"
 	"testing"
 )
 
@@ -381,4 +382,51 @@ func TestTriggerNamesLower(t *testing.T) {
 	}
 	st.MustEqual(1, len(triggerNames))
 	st.Equal("test_insert", triggerNames[0])
+}
+
+var expectedColumns = []Column{
+	{Name: "ID", Domain: "", SqlType: "BIGINT", SqlSubtype: NullableInt16{0, false}, Length: 8, Precision: NullableInt16{0, false}, Scale: 0, Default: NullableString{"", true}, Nullable: NullableBool{true, false}},
+	{Name: "FLAG", Domain: "BOOLEAN", SqlType: "INTEGER", SqlSubtype: NullableInt16{0, false}, Length: 4, Precision: NullableInt16{0, false}, Scale: 0, Default: NullableString{"", true}, Nullable: NullableBool{false, true}},
+	{Name: "BINARY", Domain: "", SqlType: "BLOB", SqlSubtype: NullableInt16{0, false}, Length: 8, Precision: NullableInt16{0, true}, Scale: 0, Default: NullableString{"", true}, Nullable: NullableBool{false, true}},
+	{Name: "I", Domain: "", SqlType: "INTEGER", SqlSubtype: NullableInt16{0, false}, Length: 4, Precision: NullableInt16{0, false}, Scale: 0, Default: NullableString{"", true}, Nullable: NullableBool{false, true}},
+	{Name: "I32", Domain: "", SqlType: "INTEGER", SqlSubtype: NullableInt16{0, false}, Length: 4, Precision: NullableInt16{0, false}, Scale: 0, Default: NullableString{"0", false}, Nullable: NullableBool{false, true}},
+	{Name: "I64", Domain: "", SqlType: "BIGINT", SqlSubtype: NullableInt16{0, false}, Length: 8, Precision: NullableInt16{0, false}, Scale: 0, Default: NullableString{"", true}, Nullable: NullableBool{false, true}},
+	{Name: "F32", Domain: "", SqlType: "FLOAT", SqlSubtype: NullableInt16{0, true}, Length: 4, Precision: NullableInt16{0, true}, Scale: 0, Default: NullableString{"", true}, Nullable: NullableBool{false, true}},
+	{Name: "F64", Domain: "", SqlType: "DOUBLE PRECISION", SqlSubtype: NullableInt16{0, true}, Length: 8, Precision: NullableInt16{0, true}, Scale: 0, Default: NullableString{"0.0", false}, Nullable: NullableBool{false, true}},
+	{Name: "C", Domain: "", SqlType: "CHAR", SqlSubtype: NullableInt16{0, false}, Length: 1, Precision: NullableInt16{0, true}, Scale: 0, Default: NullableString{"", true}, Nullable: NullableBool{false, true}},
+	{Name: "CS", Domain: "ALPHABET", SqlType: "CHAR", SqlSubtype: NullableInt16{0, false}, Length: 26, Precision: NullableInt16{0, true}, Scale: 0, Default: NullableString{"", true}, Nullable: NullableBool{false, true}},
+	{Name: "V", Domain: "", SqlType: "VARCHAR", SqlSubtype: NullableInt16{0, false}, Length: 1, Precision: NullableInt16{0, true}, Scale: 0, Default: NullableString{"", true}, Nullable: NullableBool{false, true}},
+	{Name: "VS", Domain: "ALPHA", SqlType: "VARCHAR", SqlSubtype: NullableInt16{0, false}, Length: 26, Precision: NullableInt16{0, true}, Scale: 0, Default: NullableString{"", true}, Nullable: NullableBool{false, true}},
+	{Name: "M", Domain: "", SqlType: "BLOB", SqlSubtype: NullableInt16{1, false}, Length: 8, Precision: NullableInt16{0, true}, Scale: 0, Default: NullableString{"", true}, Nullable: NullableBool{false, true}},
+	{Name: "DT", Domain: "", SqlType: "DATE", SqlSubtype: NullableInt16{0, true}, Length: 4, Precision: NullableInt16{0, true}, Scale: 0, Default: NullableString{"", true}, Nullable: NullableBool{false, true}},
+	{Name: "TM", Domain: "", SqlType: "TIME", SqlSubtype: NullableInt16{0, true}, Length: 4, Precision: NullableInt16{0, true}, Scale: 0, Default: NullableString{"", true}, Nullable: NullableBool{false, true}},
+	{Name: "TS", Domain: "", SqlType: "TIMESTAMP", SqlSubtype: NullableInt16{0, true}, Length: 8, Precision: NullableInt16{0, true}, Scale: 0, Default: NullableString{"", true}, Nullable: NullableBool{false, true}},
+	{Name: "N92", Domain: "", SqlType: "NUMERIC", SqlSubtype: NullableInt16{1, false}, Length: 4, Precision: NullableInt16{9, false}, Scale: -2, Default: NullableString{"", true}, Nullable: NullableBool{false, true}},
+	{Name: "D92", Domain: "", SqlType: "DECIMAL", SqlSubtype: NullableInt16{2, false}, Length: 4, Precision: NullableInt16{9, false}, Scale: -2, Default: NullableString{"", true}, Nullable: NullableBool{false, true}},
+}
+
+func TestColumns(t *testing.T) {
+	st := SuperTest{t}
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	if err = conn.ExecuteScript(sqlSampleSchema); err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	cols, err := conn.Columns("TEST")
+	if err != nil {
+		t.Fatal(err)
+	}
+	st.MustEqual(18, len(cols))
+	for i, exp := range expectedColumns {
+		if !reflect.DeepEqual(&exp, cols[i]) {
+			t.Errorf("Expected %v, got %v", &exp, cols[i])
+		}
+	}
 }

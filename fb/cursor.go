@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"reflect"
 	"strings"
 	"time"
 	"unsafe"
@@ -577,17 +578,17 @@ func columnsFromSqlda(sqlda *C.XSQLDA, lowercaseNames bool) []*Column {
 			col.Name = strings.ToLower(col.Name)
 		}
 		col.TypeCode = int(sqlvar.sqltype & ^1)
-		col.SqlType = sqlTypeFromCode(dtp, sqlvar.sqlsubtype)
-		col.SqlSubtype = int(sqlvar.sqlsubtype)
-		col.Length = int(sqlvar.sqllen)
+		col.SqlType = sqlTypeFromCode(int(dtp), int(sqlvar.sqlsubtype))
+		col.SqlSubtype = NullableInt16{int16(sqlvar.sqlsubtype), false}
+		col.Length = int16(sqlvar.sqllen)
 		if dtp == C.SQL_VARYING {
 			col.InternalSize = int(sqlvar.sqllen + C.SHORT_SIZE)
 		} else {
 			col.InternalSize = int(sqlvar.sqllen)
 		}
-		col.Precision = precisionFromSqlvar(sqlvar)
-		col.Scale = int(sqlvar.sqlscale)
-		col.Nullable = (sqlvar.sqltype & 1) != 0
+		col.Precision = NullableInt16{precisionFromSqlvar(sqlvar), false}
+		col.Scale = int16(sqlvar.sqlscale)
+		col.Nullable = NullableBool{(sqlvar.sqltype & 1) != 0, false}
 
 		ary[count] = &col
 	}
@@ -808,7 +809,7 @@ func (cursor *Cursor) Next() bool {
 				if cursor.err = fbErrorCheck(&isc_status); cursor.err != nil {
 					return false
 				}
-				if cursor.Columns[count].SqlSubtype == 1 {
+				if cursor.Columns[count].SqlSubtype.Value == 1 {
 					val = string(bval)
 				} else {
 					val = bval
@@ -850,7 +851,7 @@ func (cursor *Cursor) Scan(dest ...interface{}) error {
 	}
 	for i, v := range cursor.row {
 		if err := ConvertValue(dest[i], v); err != nil {
-			return fmt.Errorf("fb: Scan error on column %d: %v (%v)", i, err, v)
+			return fmt.Errorf("fb: Scan error on column %d: %v (%v, %v)", i, err, v, reflect.TypeOf(v))
 		}
 	}
 	return nil
