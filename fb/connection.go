@@ -241,6 +241,19 @@ func (conn *Connection) QueryRowMaps(sql string, args ...interface{}) (rows []ma
 	return
 }
 
+func (conn *Connection) QueryRow(sql string, args ...interface{}) (row []interface{}, err error) {
+	var cursor *Cursor
+	if cursor, err = conn.Execute(sql, args...); err != nil {
+		return
+	}
+	defer cursor.Close()
+	if cursor.Next() {
+		row = cursor.Row()
+	}
+	err = cursor.Err()
+	return
+}
+
 func (conn *Connection) QueryRows(sql string, args ...interface{}) (rows [][]interface{}, err error) {
 	var cursor *Cursor
 	if cursor, err = conn.Execute(sql, args...); err != nil {

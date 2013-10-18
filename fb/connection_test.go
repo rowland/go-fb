@@ -433,24 +433,9 @@ func TestColumns(t *testing.T) {
 	}
 }
 
-func TestQueryRows(t *testing.T) {
-	st := SuperTest{t}
-	os.Remove(TestFilename)
-
-	conn, err := Create(TestConnectionString)
-	if err != nil {
-		t.Fatalf("Unexpected error creating database: %s", err)
-	}
-	defer conn.Drop()
-
-	sqlSelect := "SELECT * FROM TEST;"
-
-	if err = conn.ExecuteScript(sqlSampleSchema); err != nil {
-		t.Fatalf("Error executing schema: %s", err)
-	}
-
-	for id := 0; id < 10; id++ {
-		if _, err = conn.Execute(sqlSampleInsert,
+func insertGeneratedRows(t *testing.T, conn *Connection, count int) {
+	for id := 0; id < count; id++ {
+		if _, err := conn.Execute(sqlSampleInsert,
 			genBi(id),
 			int(id%2),
 			nil,
@@ -472,14 +457,34 @@ func TestQueryRows(t *testing.T) {
 			t.Fatalf("Error executing insert: %s", err)
 		}
 	}
+}
+
+func TestQueryRows(t *testing.T) {
+	st := SuperTest{t}
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	sqlSelect := "SELECT * FROM TEST;"
+
+	if err = conn.ExecuteScript(sqlSampleSchema); err != nil {
+		t.Fatalf("Error executing schema: %s", err)
+	}
+
+	const testRows = 10
+	insertGeneratedRows(t, conn, testRows)
 
 	var rows [][]interface{}
 	if rows, err = conn.QueryRows(sqlSelect); err != nil {
 		t.Fatalf("Unexpected error in select: %s", err)
 	}
 
-	if len(rows) != 10 {
-		t.Fatalf("Expected %d rows, got %d", 10, len(rows))
+	if len(rows) != testRows {
+		t.Fatalf("Expected %d rows, got %d", testRows, len(rows))
 	}
 
 	for id, row := range rows {
@@ -520,37 +525,16 @@ func TestQueryRowMaps(t *testing.T) {
 		t.Fatalf("Error executing schema: %s", err)
 	}
 
-	for id := 0; id < 10; id++ {
-		if _, err = conn.Execute(sqlSampleInsert,
-			genBi(id),
-			int(id%2),
-			nil,
-			genI(id),
-			genI(id),
-			genBi(id),
-			genF(id),
-			genD(id),
-			genC(id),
-			genC10(id),
-			genVc(id),
-			genVc10(id),
-			genVc10000(id),
-			genDt(id).In(conn.Location),
-			genTm(id).In(conn.Location),
-			genTs(id).In(conn.Location),
-			genN92(id),
-			genD92(id)); err != nil {
-			t.Fatalf("Error executing insert: %s", err)
-		}
-	}
+	const testRows = 10
+	insertGeneratedRows(t, conn, testRows)
 
 	var rows []map[string]interface{}
 	if rows, err = conn.QueryRowMaps(sqlSelect); err != nil {
 		t.Fatalf("Unexpected error in select: %s", err)
 	}
 
-	if len(rows) != 10 {
-		t.Fatalf("Expected %d rows, got %d", 10, len(rows))
+	if len(rows) != testRows {
+		t.Fatalf("Expected %d rows, got %d", testRows, len(rows))
 	}
 
 	for id, row := range rows {
@@ -573,4 +557,47 @@ func TestQueryRowMaps(t *testing.T) {
 		st.Equal(genN92(id), row["N92"])
 		st.Equal(genD92(id), row["D92"])
 	}
+}
+
+func TestQueryRow(t *testing.T) {
+	st := SuperTest{t}
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	sqlSelect := "SELECT * FROM TEST;"
+
+	if err = conn.ExecuteScript(sqlSampleSchema); err != nil {
+		t.Fatalf("Error executing schema: %s", err)
+	}
+
+	insertGeneratedRows(t, conn, 1)
+
+	var row []interface{}
+	if row, err = conn.QueryRow(sqlSelect); err != nil {
+		t.Fatalf("Unexpected error in select: %s", err)
+	}
+
+	st.Equal(genBi(0), row[0])
+	st.Equal(int32(0%2), row[1])
+	st.Equal(nil, row[2])
+	st.Equal(genI(0), row[3])
+	st.Equal(genI(0), row[4])
+	st.Equal(genBi(0), row[5])
+	st.Equal(genF(0), row[6])
+	st.Equal(genD(0), row[7])
+	st.Equal(genC(0), row[8])
+	st.Equal(genC10(0), strings.TrimRightFunc(row[9].(string), unicode.IsSpace))
+	st.Equal(genVc(0), row[10])
+	st.Equal(genVc10(0), row[11])
+	st.Equal(genVc10000(0), row[12])
+	st.Equal(genDt(0).In(conn.Location), row[13])
+	st.Equal(genTm(0).In(conn.Location), row[14])
+	st.Equal(genTs(0).In(conn.Location), row[15])
+	st.Equal(genN92(0), row[16])
+	st.Equal(genD92(0), row[17])
 }
