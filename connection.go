@@ -198,9 +198,9 @@ func (conn *Connection) GeneratorNames() (names []string, err error) {
 	return conn.names(sql)
 }
 
-func (conn *Connection) names(sql string) (names []string, err error) {
+func (conn *Connection) names(sql string, args ...interface{}) (names []string, err error) {
 	var cursor *Cursor
-	if cursor, err = conn.Execute(sql); err != nil {
+	if cursor, err = conn.Execute(sql, args...); err != nil {
 		return
 	}
 	defer cursor.Close()
@@ -234,6 +234,17 @@ func (conn *Connection) NextSequenceValue(name string) (value int64, err error) 
 	}
 	err = cursor.Err()
 	return
+}
+
+func (conn *Connection) PrimaryKey(tableName string) (key []string, err error) {
+	const sql = `
+		SELECT s.rdb$field_name
+		FROM rdb$indices i
+			JOIN rdb$index_segments s ON i.rdb$index_name = s.rdb$index_name
+			LEFT JOIN rdb$relation_constraints c ON i.rdb$index_name = c.rdb$index_name
+		WHERE i.rdb$relation_name = ? and c.rdb$constraint_type = 'PRIMARY KEY'
+		ORDER BY rdb$field_position;`
+	return conn.names(sql, tableName)
 }
 
 func (conn *Connection) ProcedureNames() (names []string, err error) {
