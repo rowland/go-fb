@@ -10,7 +10,6 @@ import (
 const (
 	TestFilename          = "/var/fbdata/go-fb-test.fdb"
 	TestTimezone          = "US/Arizona"
-	// TestTimezone          = "UTC"
 	TestConnectionString  = "database=localhost:/var/fbdata/go-fb-test.fdb; username=gotest; password=gotest; charset=NONE; role=READER; timezone=" + TestTimezone + ";"
 	TestConnectionString2 = "database=localhost:/var/fbdata/go-fb-test.fdb;username=gotest;password=gotest;lowercase_names=true;page_size=2048"
 	TestConnectionString3 = "database=localhost:/var/fbdata/go-fb-test.fdb;username=bogus;password=gotest;lowercase_names=true;page_size=2048"

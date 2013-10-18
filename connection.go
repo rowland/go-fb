@@ -206,6 +206,41 @@ func (conn *Connection) IndexColumns(indexName string) (names []string, err erro
 	return conn.names(sql, indexName)
 }
 
+func (conn *Connection) Indexes() (indexes []*Index, err error) {
+	const sql = `SELECT RDB$INDICES.RDB$RELATION_NAME, RDB$INDICES.RDB$INDEX_NAME, RDB$INDICES.RDB$UNIQUE_FLAG, RDB$INDICES.RDB$INDEX_TYPE 
+	FROM RDB$INDICES 
+	JOIN RDB$RELATIONS ON RDB$INDICES.RDB$RELATION_NAME = RDB$RELATIONS.RDB$RELATION_NAME 
+	WHERE (RDB$RELATIONS.RDB$SYSTEM_FLAG <> 1 OR RDB$RELATIONS.RDB$SYSTEM_FLAG IS NULL);`
+	var cursor *Cursor
+	if cursor, err = conn.Execute(sql); err != nil {
+		return
+	}
+	defer cursor.Close()
+
+	for cursor.Next() {
+		var index Index
+		if err = cursor.Scan(&index.TableName, &index.Name, &index.Unique, &index.Unique); err != nil {
+			return
+		}
+		index.Name = strings.TrimRightFunc(index.Name, unicode.IsSpace)
+		index.TableName = strings.TrimRightFunc(index.TableName, unicode.IsSpace)
+		if index.Columns, err = conn.IndexColumns(index.Name); err != nil {
+			return
+		}
+		if conn.database.LowercaseNames && !hasLowercase(index.Name) {
+			index.Name = strings.ToLower(index.Name)
+		}
+		if conn.database.LowercaseNames && !hasLowercase(index.TableName) {
+			index.TableName = strings.ToLower(index.TableName)
+		}
+		indexes = append(indexes, &index)
+	}
+	if cursor.Err() != io.EOF {
+		err = cursor.Err()
+	}
+	return
+}
+
 func (conn *Connection) names(sql string, args ...interface{}) (names []string, err error) {
 	var cursor *Cursor
 	if cursor, err = conn.Execute(sql, args...); err != nil {

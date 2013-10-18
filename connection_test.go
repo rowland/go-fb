@@ -714,7 +714,7 @@ func TestPrimaryKeyCompound(t *testing.T) {
 	if pk, err = conn.PrimaryKey("TEST"); err != nil {
 		t.Fatal(err)
 	}
-	
+
 	exp := []string{"ID", "NAME"}
 	if !reflect.DeepEqual(exp, pk) {
 		t.Errorf("Expected %v, got %v", exp, pk)
@@ -741,9 +741,71 @@ func TestIndexColumns(t *testing.T) {
 	if pk, err = conn.IndexColumns("PK"); err != nil {
 		t.Fatal(err)
 	}
-	
+
 	exp := []string{"ID", "NAME"}
 	if !reflect.DeepEqual(exp, pk) {
 		t.Errorf("Expected %v, got %v", exp, pk)
 	}
+}
+
+func TestIndexes(t *testing.T) {
+	st := SuperTest{t}
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	const sqlSchema = `
+		create table test(id int not null, name varchar(20) not null);
+		alter table test add constraint pk primary key(id, name);`
+	if err = conn.ExecuteScript(sqlSchema); err != nil {
+		t.Fatalf("Error executing schema: %s", err)
+	}
+
+	indexes, err := conn.Indexes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	st.MustEqual(1, len(indexes))
+	st.Equal("PK", indexes[0].Name)
+	st.Equal("TEST", indexes[0].TableName)
+	st.False(indexes[0].Unique.Value)
+	st.False(indexes[0].Descending.Value)
+	st.MustEqual(2, len(indexes[0].Columns))
+	st.Equal("ID", indexes[0].Columns[0])
+	st.Equal("NAME", indexes[0].Columns[1])
+}
+
+func TestIndexesLower(t *testing.T) {
+	st := SuperTest{t}
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionStringLowerNames)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	const sqlSchema = `
+		create table test(id int not null, name varchar(20) not null);
+		alter table test add constraint pk primary key(id, name);`
+	if err = conn.ExecuteScript(sqlSchema); err != nil {
+		t.Fatalf("Error executing schema: %s", err)
+	}
+
+	indexes, err := conn.Indexes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	st.MustEqual(1, len(indexes))
+	st.Equal("pk", indexes[0].Name)
+	st.Equal("test", indexes[0].TableName)
+	st.False(indexes[0].Unique.Value)
+	st.False(indexes[0].Descending.Value)
+	st.MustEqual(2, len(indexes[0].Columns))
+	st.Equal("id", indexes[0].Columns[0])
+	st.Equal("name", indexes[0].Columns[1])
 }

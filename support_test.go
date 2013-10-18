@@ -685,7 +685,7 @@ func TestConvertValue_time(t *testing.T) {
 	if tm2 != dt {
 		t.Errorf("Expected %v, got %v", tm)
 	}
-	
+
 	var nt NullableTime
 	if err = ConvertValue(&nt, dt); err != nil {
 		t.Error(err)
