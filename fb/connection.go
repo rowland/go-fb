@@ -226,6 +226,21 @@ func (conn *Connection) ProcedureNames() (names []string, err error) {
 	return conn.names(sql)
 }
 
+func (conn *Connection) QueryRowMaps(sql string, args ...interface{}) (rows []map[string]interface{}, err error) {
+	var cursor *Cursor
+	if cursor, err = conn.Execute(sql, args...); err != nil {
+		return
+	}
+	defer cursor.Close()
+	for cursor.Next() {
+		rows = append(rows, cursor.RowMap())
+	}
+	if cursor.Err() != io.EOF {
+		err = cursor.Err()
+	}
+	return
+}
+
 func (conn *Connection) QueryRows(sql string, args ...interface{}) (rows [][]interface{}, err error) {
 	var cursor *Cursor
 	if cursor, err = conn.Execute(sql, args...); err != nil {

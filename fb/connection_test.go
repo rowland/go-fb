@@ -503,3 +503,74 @@ func TestQueryRows(t *testing.T) {
 		st.Equal(genD92(id), row[17])
 	}
 }
+
+func TestQueryRowMaps(t *testing.T) {
+	st := SuperTest{t}
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	sqlSelect := "SELECT * FROM TEST;"
+
+	if err = conn.ExecuteScript(sqlSampleSchema); err != nil {
+		t.Fatalf("Error executing schema: %s", err)
+	}
+
+	for id := 0; id < 10; id++ {
+		if _, err = conn.Execute(sqlSampleInsert,
+			genBi(id),
+			int(id%2),
+			nil,
+			genI(id),
+			genI(id),
+			genBi(id),
+			genF(id),
+			genD(id),
+			genC(id),
+			genC10(id),
+			genVc(id),
+			genVc10(id),
+			genVc10000(id),
+			genDt(id).In(conn.Location),
+			genTm(id).In(conn.Location),
+			genTs(id).In(conn.Location),
+			genN92(id),
+			genD92(id)); err != nil {
+			t.Fatalf("Error executing insert: %s", err)
+		}
+	}
+
+	var rows []map[string]interface{}
+	if rows, err = conn.QueryRowMaps(sqlSelect); err != nil {
+		t.Fatalf("Unexpected error in select: %s", err)
+	}
+
+	if len(rows) != 10 {
+		t.Fatalf("Expected %d rows, got %d", 10, len(rows))
+	}
+
+	for id, row := range rows {
+		st.Equal(genBi(id), row["ID"])
+		st.Equal(int32(id%2), row["FLAG"])
+		st.Equal(nil, row["BINARY"])
+		st.Equal(genI(id), row["I"])
+		st.Equal(genI(id), row["I32"])
+		st.Equal(genBi(id), row["I64"])
+		st.Equal(genF(id), row["F32"])
+		st.Equal(genD(id), row["F64"])
+		st.Equal(genC(id), row["C"])
+		st.Equal(genC10(id), strings.TrimRightFunc(row["CS"].(string), unicode.IsSpace))
+		st.Equal(genVc(id), row["V"])
+		st.Equal(genVc10(id), row["VS"])
+		st.Equal(genVc10000(id), row["M"])
+		st.Equal(genDt(id).In(conn.Location), row["DT"])
+		st.Equal(genTm(id).In(conn.Location), row["TM"])
+		st.Equal(genTs(id).In(conn.Location), row["TS"])
+		st.Equal(genN92(id), row["N92"])
+		st.Equal(genD92(id), row["D92"])
+	}
+}
