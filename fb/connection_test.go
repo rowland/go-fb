@@ -601,3 +601,46 @@ func TestQueryRow(t *testing.T) {
 	st.Equal(genN92(0), row[16])
 	st.Equal(genD92(0), row[17])
 }
+
+func TestQueryRowMap(t *testing.T) {
+	st := SuperTest{t}
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	sqlSelect := "SELECT * FROM TEST;"
+
+	if err = conn.ExecuteScript(sqlSampleSchema); err != nil {
+		t.Fatalf("Error executing schema: %s", err)
+	}
+
+	insertGeneratedRows(t, conn, 1)
+
+	var row map[string]interface{}
+	if row, err = conn.QueryRowMap(sqlSelect); err != nil {
+		t.Fatalf("Unexpected error in select: %s", err)
+	}
+
+	st.Equal(genBi(0), row["ID"])
+	st.Equal(int32(0%2), row["FLAG"])
+	st.Equal(nil, row["BINARY"])
+	st.Equal(genI(0), row["I"])
+	st.Equal(genI(0), row["I32"])
+	st.Equal(genBi(0), row["I64"])
+	st.Equal(genF(0), row["F32"])
+	st.Equal(genD(0), row["F64"])
+	st.Equal(genC(0), row["C"])
+	st.Equal(genC10(0), strings.TrimRightFunc(row["CS"].(string), unicode.IsSpace))
+	st.Equal(genVc(0), row["V"])
+	st.Equal(genVc10(0), row["VS"])
+	st.Equal(genVc10000(0), row["M"])
+	st.Equal(genDt(0).In(conn.Location), row["DT"])
+	st.Equal(genTm(0).In(conn.Location), row["TM"])
+	st.Equal(genTs(0).In(conn.Location), row["TS"])
+	st.Equal(genN92(0), row["N92"])
+	st.Equal(genD92(0), row["D92"])
+}

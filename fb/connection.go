@@ -226,6 +226,32 @@ func (conn *Connection) ProcedureNames() (names []string, err error) {
 	return conn.names(sql)
 }
 
+func (conn *Connection) QueryRow(sql string, args ...interface{}) (row []interface{}, err error) {
+	var cursor *Cursor
+	if cursor, err = conn.Execute(sql, args...); err != nil {
+		return
+	}
+	defer cursor.Close()
+	if cursor.Next() {
+		row = cursor.Row()
+	}
+	err = cursor.Err()
+	return
+}
+
+func (conn *Connection) QueryRowMap(sql string, args ...interface{}) (row map[string]interface{}, err error) {
+	var cursor *Cursor
+	if cursor, err = conn.Execute(sql, args...); err != nil {
+		return
+	}
+	defer cursor.Close()
+	if cursor.Next() {
+		row = cursor.RowMap()
+	}
+	err = cursor.Err()
+	return
+}
+
 func (conn *Connection) QueryRowMaps(sql string, args ...interface{}) (rows []map[string]interface{}, err error) {
 	var cursor *Cursor
 	if cursor, err = conn.Execute(sql, args...); err != nil {
@@ -238,19 +264,6 @@ func (conn *Connection) QueryRowMaps(sql string, args ...interface{}) (rows []ma
 	if cursor.Err() != io.EOF {
 		err = cursor.Err()
 	}
-	return
-}
-
-func (conn *Connection) QueryRow(sql string, args ...interface{}) (row []interface{}, err error) {
-	var cursor *Cursor
-	if cursor, err = conn.Execute(sql, args...); err != nil {
-		return
-	}
-	defer cursor.Close()
-	if cursor.Next() {
-		row = cursor.Row()
-	}
-	err = cursor.Err()
 	return
 }
 
