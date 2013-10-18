@@ -19,6 +19,7 @@ ISC_STATUS isc_start_transaction2(ISC_STATUS* isc_status,
 import "C"
 
 import (
+	"fmt"
 	"io"
 	"strings"
 	"time"
@@ -218,6 +219,20 @@ func (conn *Connection) names(sql string) (names []string, err error) {
 	if cursor.Err() != io.EOF {
 		err = cursor.Err()
 	}
+	return
+}
+
+func (conn *Connection) NextSequenceValue(name string) (value int64, err error) {
+	sql := fmt.Sprintf("SELECT GEN_ID(%s, 1) FROM RDB$DATABASE", name)
+	var cursor *Cursor
+	if cursor, err = conn.Execute(sql); err != nil {
+		return
+	}
+	defer cursor.Close()
+	if cursor.Next() {
+		cursor.Scan(&value)
+	}
+	err = cursor.Err()
 	return
 }
 

@@ -644,3 +644,28 @@ func TestQueryRowMap(t *testing.T) {
 	st.Equal(genN92(0), row["N92"])
 	st.Equal(genD92(0), row["D92"])
 }
+
+func TestNextSequenceValue(t *testing.T) {
+	st := SuperTest{t}
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	sqlSchema := "CREATE GENERATOR TEST;"
+
+	if _, err = conn.Execute(sqlSchema); err != nil {
+		t.Fatalf("Error executing schema: %s", err)
+	}
+
+	for id := 1; id <= 10; id++ {
+		v, err := conn.NextSequenceValue("TEST")
+		if err != nil {
+			t.Fatal(err)
+		}
+		st.Equal(int64(id), v)
+	}
+}
