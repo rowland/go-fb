@@ -3,7 +3,9 @@ package fb
 import (
 	"os"
 	"reflect"
+	"strings"
 	"testing"
+	"unicode"
 )
 
 const TestConnectionStringLowerNames = TestConnectionString + "lowercase_names=true;"
@@ -428,5 +430,76 @@ func TestColumns(t *testing.T) {
 		if !reflect.DeepEqual(&exp, cols[i]) {
 			t.Errorf("Expected %v, got %v", &exp, cols[i])
 		}
+	}
+}
+
+func TestQueryRows(t *testing.T) {
+	st := SuperTest{t}
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	sqlSelect := "SELECT * FROM TEST;"
+
+	if err = conn.ExecuteScript(sqlSampleSchema); err != nil {
+		t.Fatalf("Error executing schema: %s", err)
+	}
+
+	for id := 0; id < 10; id++ {
+		if _, err = conn.Execute(sqlSampleInsert,
+			genBi(id),
+			int(id%2),
+			nil,
+			genI(id),
+			genI(id),
+			genBi(id),
+			genF(id),
+			genD(id),
+			genC(id),
+			genC10(id),
+			genVc(id),
+			genVc10(id),
+			genVc10000(id),
+			genDt(id).In(conn.Location),
+			genTm(id).In(conn.Location),
+			genTs(id).In(conn.Location),
+			genN92(id),
+			genD92(id)); err != nil {
+			t.Fatalf("Error executing insert: %s", err)
+		}
+	}
+
+	var rows [][]interface{}
+	if rows, err = conn.QueryRows(sqlSelect); err != nil {
+		t.Fatalf("Unexpected error in select: %s", err)
+	}
+
+	if len(rows) != 10 {
+		t.Fatalf("Expected %d rows, got %d", 10, len(rows))
+	}
+
+	for id, row := range rows {
+		st.Equal(genBi(id), row[0])
+		st.Equal(int32(id%2), row[1])
+		st.Equal(nil, row[2])
+		st.Equal(genI(id), row[3])
+		st.Equal(genI(id), row[4])
+		st.Equal(genBi(id), row[5])
+		st.Equal(genF(id), row[6])
+		st.Equal(genD(id), row[7])
+		st.Equal(genC(id), row[8])
+		st.Equal(genC10(id), strings.TrimRightFunc(row[9].(string), unicode.IsSpace))
+		st.Equal(genVc(id), row[10])
+		st.Equal(genVc10(id), row[11])
+		st.Equal(genVc10000(id), row[12])
+		st.Equal(genDt(id).In(conn.Location), row[13])
+		st.Equal(genTm(id).In(conn.Location), row[14])
+		st.Equal(genTs(id).In(conn.Location), row[15])
+		st.Equal(genN92(id), row[16])
+		st.Equal(genD92(id), row[17])
 	}
 }

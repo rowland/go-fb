@@ -40,6 +40,9 @@ const sqlSampleSchema = `
 		TS TIMESTAMP,
 		N92 NUMERIC(9,2),
 		D92 DECIMAL(9,2));`
+const sqlSampleInsert = `
+	INSERT INTO TEST (ID, FLAG, BINARY, I, I32, I64, F32, F64, C, CS, V, VS, M, DT, TM, TS, N92, D92)
+	VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? ,?);`
 
 func TestMapFromConnectionString(t *testing.T) {
 	m, err := MapFromConnectionString(TestConnectionString)

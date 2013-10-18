@@ -41,7 +41,7 @@ func TestNextRow(t *testing.T) {
 	st.Equal("NONE", strings.TrimSpace(row[3].(string)))
 }
 
-var sqlSampleInsert = `INSERT INTO TEST VALUES (
+var sqlSampleInsertData = `INSERT INTO TEST VALUES (
 	1,
 	1,
 	'BINARY BLOB CONTENTS',
@@ -81,7 +81,7 @@ func TestRowMap(t *testing.T) {
 		t.Fatalf("Error executing schema: %s", err)
 	}
 
-	if _, err = conn.Execute(sqlSampleInsert); err != nil {
+	if _, err = conn.Execute(sqlSampleInsertData); err != nil {
 		t.Fatalf("Error executing insert: %s", err)
 	}
 	if _, err = conn.Execute(sqlInsert2); err != nil {
@@ -160,7 +160,7 @@ func TestScan(t *testing.T) {
 		t.Fatalf("Error executing schema: %s", err)
 	}
 
-	if _, err = conn.Execute(sqlSampleInsert); err != nil {
+	if _, err = conn.Execute(sqlSampleInsertData); err != nil {
 		t.Fatalf("Error executing insert: %s", err)
 	}
 	if _, err = conn.Execute(sqlInsert2); err != nil {

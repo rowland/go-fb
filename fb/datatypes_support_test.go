@@ -47,12 +47,14 @@ func genVc10000(i int) string {
 	return strings.Repeat(genC(i), i*1000)
 }
 
+var genLoc, _ = time.LoadLocation(TestTimezone)
+
 func genDt(i int) time.Time {
-	return time.Date(2000, time.Month(i+1), i+1, 0, 0, 0, 0, time.Local)
+	return time.Date(2000, time.Month(i+1), i+1, 0, 0, 0, 0, genLoc)
 }
 
 func genTm(i int) time.Time {
-	return time.Date(1990, time.Month(1), 1, 12, i, i, 0, time.Local)
+	return time.Date(1970, time.Month(1), 1, 12, i, i, 0, time.Local)
 }
 
 func genTs(i int) time.Time {

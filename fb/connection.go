@@ -226,6 +226,21 @@ func (conn *Connection) ProcedureNames() (names []string, err error) {
 	return conn.names(sql)
 }
 
+func (conn *Connection) QueryRows(sql string, args ...interface{}) (rows [][]interface{}, err error) {
+	var cursor *Cursor
+	if cursor, err = conn.Execute(sql, args...); err != nil {
+		return
+	}
+	defer cursor.Close()
+	for cursor.Next() {
+		rows = append(rows, cursor.Row())
+	}
+	if cursor.Err() != io.EOF {
+		err = cursor.Err()
+	}
+	return
+}
+
 func (conn *Connection) RoleNames() (names []string, err error) {
 	const sql = "SELECT RDB$ROLE_NAME FROM RDB$ROLES WHERE RDB$SYSTEM_FLAG = 0 ORDER BY RDB$ROLE_NAME"
 	return conn.names(sql)
