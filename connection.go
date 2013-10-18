@@ -198,6 +198,14 @@ func (conn *Connection) GeneratorNames() (names []string, err error) {
 	return conn.names(sql)
 }
 
+func (conn *Connection) IndexColumns(indexName string) (names []string, err error) {
+	const sql = `SELECT RDB$FIELD_NAME
+		FROM RDB$INDEX_SEGMENTS 
+		WHERE RDB$INDEX_SEGMENTS.RDB$INDEX_NAME = ? 
+		ORDER BY RDB$INDEX_SEGMENTS.RDB$FIELD_POSITION`
+	return conn.names(sql, indexName)
+}
+
 func (conn *Connection) names(sql string, args ...interface{}) (names []string, err error) {
 	var cursor *Cursor
 	if cursor, err = conn.Execute(sql, args...); err != nil {

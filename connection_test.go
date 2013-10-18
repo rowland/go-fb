@@ -720,3 +720,30 @@ func TestPrimaryKeyCompound(t *testing.T) {
 		t.Errorf("Expected %v, got %v", exp, pk)
 	}
 }
+
+func TestIndexColumns(t *testing.T) {
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	const sqlSchema = `
+		create table test(id int not null, name varchar(20) not null);
+		alter table test add constraint pk primary key(id, name);`
+	if err = conn.ExecuteScript(sqlSchema); err != nil {
+		t.Fatalf("Error executing schema: %s", err)
+	}
+
+	var pk []string
+	if pk, err = conn.IndexColumns("PK"); err != nil {
+		t.Fatal(err)
+	}
+	
+	exp := []string{"ID", "NAME"}
+	if !reflect.DeepEqual(exp, pk) {
+		t.Errorf("Expected %v, got %v", exp, pk)
+	}
+}
