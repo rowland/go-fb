@@ -31,6 +31,18 @@ func TestInsertInteger(t *testing.T) {
 		t.Fatalf("Error executing insert: %s", err)
 	}
 
+	ni := NullableInt32{30303, false}
+	ns := NullableString{"10203", false}
+	if _, err = conn.Execute(sqlInsert, &ni, &ns); err != nil {
+		t.Fatalf("Error executing insert: %s", err)
+	}
+
+	nni := NullableInt32{0, true}
+	nns := NullableString{"", true}
+	if _, err = conn.Execute(sqlInsert, &nni, &nns); err != nil {
+		t.Fatalf("Error executing insert: %s", err)
+	}
+
 	var cursor *Cursor
 	if cursor, err = conn.Execute(sqlSelect); err != nil {
 		t.Fatalf("Unexpected error in select: %s", err)
@@ -43,6 +55,28 @@ func TestInsertInteger(t *testing.T) {
 	vals := cursor.Row()
 	st.Equal(int32(500000), vals[0])
 	st.Equal(int32(500000), vals[1])
+
+	if !cursor.Next() {
+		t.Fatalf("Error in fetch: %s", cursor.Err())
+	}
+	var ni2 NullableInt32
+	var ns2 NullableString
+	cursor.Scan(&ni2, &ns2)
+	st.False(ni2.Null)
+	st.Equal(ni, ni2)
+	st.False(ns2.Null)
+	st.Equal(ns, ns2)
+
+	if !cursor.Next() {
+		t.Fatalf("Error in fetch: %s", cursor.Err())
+	}
+	var nni2 NullableInt32
+	var nns2 NullableString
+	cursor.Scan(&nni2, &nns2)
+	st.True(nni2.Null)
+	st.Equal(nni, nni2)
+	st.True(nns2.Null)
+	st.Equal(nns, nns2)
 }
 
 func TestInsertSmallint(t *testing.T) {

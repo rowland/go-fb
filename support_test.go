@@ -5,6 +5,48 @@ import (
 	"time"
 )
 
+func Test_boolFromIf(t *testing.T) {
+	var bTrue bool = true
+	if v, err := boolFromIf(bTrue); err != nil || v != true {
+		t.Errorf("boolFromIf from bool failed: got %v, %v", v, err)
+	}
+
+	var bFalse bool = false
+	if v, err := boolFromIf(bFalse); err != nil || v != false {
+		t.Errorf("boolFromIf from bool failed: got %v, %v", v, err)
+	}
+
+	var iTrue int = 1
+	if v, err := boolFromIf(iTrue); err != nil || v != true {
+		t.Errorf("boolFromIf from int failed: got %v, %v", v, err)
+	}
+
+	var iFalse int = 0
+	if v, err := boolFromIf(iFalse); err != nil || v != false {
+		t.Errorf("boolFromIf from int failed: got %v, %v", v, err)
+	}
+
+	var sTrue = "true"
+	if v, err := boolFromIf(sTrue); err != nil || v != true {
+		t.Errorf("boolFromIf from string failed: got %v, %v", v, err)
+	}
+
+	var sFalse = "false"
+	if v, err := boolFromIf(sFalse); err != nil || v != false {
+		t.Errorf("boolFromIf from string failed: got %v, %v", v, err)
+	}
+
+	nbTrue := NullableBool{true, false}
+	if v, err := boolFromIf(&nbTrue); err != nil || v != true {
+		t.Errorf("boolFromIf from NullableBool failed: got %v, %v", v, err)
+	}
+
+	nbFalse := NullableBool{false, false}
+	if v, err := boolFromIf(&nbFalse); err != nil || v != false {
+		t.Errorf("boolFromIf from NullableBool failed: got %v, %v", v, err)
+	}
+}
+
 func Test_bytesFromIf(t *testing.T) {
 	var bs []byte = []byte("bytesFromIf test")
 	if v, err := bytesFromIf(bs); err != nil || string(v) != "bytesFromIf test" {
@@ -69,6 +111,11 @@ func Test_bytesFromIf(t *testing.T) {
 	if v, err := bytesFromIf(&b); err != nil || string(v) != "true" {
 		t.Errorf("bytesFromIf from bool failed: got %v, %v", v, err)
 	}
+
+	var nb = NullableBytes{[]byte("123.456"), false}
+	if v, err := bytesFromIf(&nb); err != nil || string(v) != "123.456" {
+		t.Errorf("bytesFromIf from NullableBytes failed: got %v, %v", v, err)
+	}
 }
 
 func Test_float64FromIf(t *testing.T) {
@@ -118,6 +165,11 @@ func Test_float64FromIf(t *testing.T) {
 	}
 	if v, err := float64FromIf(&s); err != nil || v != 123.456 {
 		t.Errorf("float64FromIf from string failed: got %v, %v", v, err)
+	}
+
+	var nf64 = NullableFloat64{123.456, false}
+	if v, err := float64FromIf(&nf64); err != nil || v != 123.456 {
+		t.Errorf("float64FromIf from NullableFloat64 failed: got %v, %v", v, err)
 	}
 }
 
@@ -169,6 +221,11 @@ func Test_float32FromIf(t *testing.T) {
 	if v, err := float32FromIf(&s); err != nil || v != 123.456 {
 		t.Errorf("float32FromIf from string failed: got %v, %v", v, err)
 	}
+
+	var nf = NullableFloat32{123.456, false}
+	if v, err := float32FromIf(&nf); err != nil || v != 123.456 {
+		t.Errorf("float32FromIf from NullableFloat32 failed: got %v, %v", v, err)
+	}
 }
 
 func Test_int64FromIf(t *testing.T) {
@@ -202,6 +259,11 @@ func Test_int64FromIf(t *testing.T) {
 	}
 	if v, err := int64FromIf(&s); err != nil || v != 123456 {
 		t.Errorf("int64FromIf from string failed: got %v, %v", v, err)
+	}
+
+	var ni64 = NullableInt64{123456, false}
+	if v, err := int64FromIf(&ni64); err != nil || v != 123456 {
+		t.Errorf("int64FromIf from NullableInt64 failed: got %v, %v", v, err)
 	}
 }
 
@@ -252,6 +314,66 @@ func Test_int32FromIf(t *testing.T) {
 	}
 	if v, err := int32FromIf(&s); err != nil || v != 123456 {
 		t.Errorf("int32FromIf from string failed: got %v, %v", v, err)
+	}
+
+	var ni32 = NullableInt32{123456, false}
+	if v, err := int32FromIf(&ni32); err != nil || v != 123456 {
+		t.Errorf("int64FromIf from NullableInt32 failed: got %v, %v", v, err)
+	}
+}
+
+func Test_int16FromIf(t *testing.T) {
+	var i64 int64 = 12345
+	if v, err := int16FromIf(i64); err != nil || v != 12345 {
+		t.Errorf("int16FromIf from int64 failed: got %v, %v", v, err)
+	}
+	if v, err := int16FromIf(&i64); err != nil || v != 12345 {
+		t.Errorf("int16FromIf from int64 failed: got %v, %v", v, err)
+	}
+
+	var i64over int64 = int32max + 1
+	if _, err := int16FromIf(i64over); err == nil {
+		t.Errorf("int16FromIf from int64 should fail")
+	}
+	if _, err := int16FromIf(&i64over); err == nil {
+		t.Errorf("int16FromIf from int64 should fail")
+	}
+
+	var i64under int64 = int32min - 1
+	if _, err := int16FromIf(i64under); err == nil {
+		t.Errorf("int16FromIf from int64 should fail")
+	}
+	if _, err := int16FromIf(&i64under); err == nil {
+		t.Errorf("int16FromIf from int64 should fail")
+	}
+
+	var i32 int32 = 12345
+	if v, err := int16FromIf(i32); err != nil || v != 12345 {
+		t.Errorf("int16FromIf from int32 failed: got %v, %v", v, err)
+	}
+	if v, err := int16FromIf(&i32); err != nil || v != 12345 {
+		t.Errorf("int16FromIf from int32 failed: got %v, %v", v, err)
+	}
+
+	var i int = 12345
+	if v, err := int16FromIf(i); err != nil || v != 12345 {
+		t.Errorf("int16FromIf from int failed: got %v, %v", v, err)
+	}
+	if v, err := int16FromIf(&i); err != nil || v != 12345 {
+		t.Errorf("int16FromIf from int failed: got %v, %v", v, err)
+	}
+
+	var s string = "12345"
+	if v, err := int16FromIf(s); err != nil || v != 12345 {
+		t.Errorf("int16FromIf from string failed: got %v, %v", v, err)
+	}
+	if v, err := int16FromIf(&s); err != nil || v != 12345 {
+		t.Errorf("int16FromIf from string failed: got %v, %v", v, err)
+	}
+
+	var ni16 = NullableInt16{12345, false}
+	if v, err := int16FromIf(&ni16); err != nil || v != 12345 {
+		t.Errorf("int16FromIf from NullableInt16 failed: got %v, %v", v, err)
 	}
 }
 
@@ -311,6 +433,11 @@ func Test_stringFromIf(t *testing.T) {
 	if v, err := stringFromIf(&b); err != nil || v != "true" {
 		t.Errorf("stringFromIf from bool failed: got %v, %v", v, err)
 	}
+
+	var ns = NullableString{"123.456", false}
+	if v, err := stringFromIf(&ns); err != nil || v != "123.456" {
+		t.Errorf("stringFromIf from NullableString failed: got %v, %v", v, err)
+	}
 }
 
 func Test_timeFromIf(t *testing.T) {
@@ -334,6 +461,11 @@ func Test_timeFromIf(t *testing.T) {
 	loc, _ := time.LoadLocation("")
 	if v, err := timeFromIf(dt4, loc); err != nil || !v.Equal(dtUTC) {
 		t.Errorf("timeFromIf from string with dashes failed: got %v, expected %v, %v", v, dtUTC, err)
+	}
+
+	ndt := NullableTime{dt, false}
+	if v, err := timeFromIf(&ndt, time.Local); err != nil || !v.Equal(dt) {
+		t.Errorf("timeFromIf from NullableTime failed: got %v, expected %v, %v", v, dt, err)
 	}
 }
 

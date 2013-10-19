@@ -64,6 +64,8 @@ func bytesFromIf(v interface{}) (b []byte, err error) {
 		b = strconv.AppendBool(b, *v)
 	case fmt.Stringer:
 		b = []byte(v.String())
+	case Interfacer:
+		b, err = bytesFromIf(v.Interface())
 	default:
 		return b, errors.New("[]byte value expected")
 	}
@@ -96,6 +98,8 @@ func float64FromIf(v interface{}) (f float64, err error) {
 		f, err = strconv.ParseFloat(d, 64)
 	case *string:
 		f, err = strconv.ParseFloat(*d, 64)
+	case Interfacer:
+		f, err = float64FromIf(d.Interface())
 	default:
 		return 0.0, errors.New("numeric value expected")
 	}
@@ -140,6 +144,8 @@ func int64FromIf(v interface{}) (i int64, err error) {
 		i, err = strconv.ParseInt(*v, 10, 64)
 	case fmt.Stringer:
 		i, err = strconv.ParseInt(v.String(), 10, 64)
+	case Interfacer:
+		i, err = int64FromIf(v.Interface())
 	default:
 		return 0, errors.New("integer value expected")
 	}
@@ -245,6 +251,8 @@ func stringFromIf(v interface{}) (s string, err error) {
 		s = strconv.FormatBool(*v)
 	case fmt.Stringer:
 		s = v.String()
+	case Interfacer:
+		s, err = stringFromIf(v.Interface())
 	default:
 		return "", errors.New("string value expected")
 	}
@@ -263,6 +271,8 @@ func timeFromIf(v interface{}, location *time.Location) (t time.Time, err error)
 		t = *v
 	case fmt.Stringer:
 		t, err = parseUnknownTime(v.String(), location)
+	case Interfacer:
+		t, err = timeFromIf(v.Interface(), location)
 	default:
 		return time.Time{}, errors.New("time value expected")
 	}

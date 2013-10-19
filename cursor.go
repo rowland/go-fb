@@ -216,6 +216,11 @@ func (cursor *Cursor) setInputParams(args []interface{}) (err error) {
 	offset := C.ISC_SHORT(0)
 	for count, arg := range args {
 		ivar := C.sqlda_sqlvar(cursor.i_sqlda, C.ISC_SHORT(count))
+		if argi, ok := arg.(Interfacer); ok {
+			if argi.Interface() == nil {
+				arg = nil
+			}
+		}
 		if arg != nil {
 			dtp := ivar.sqltype & ^1 // erase null flag
 			alignment := ivar.sqllen
