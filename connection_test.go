@@ -1,6 +1,7 @@
 package fb
 
 import (
+	"fmt"
 	"os"
 	"reflect"
 	"strings"
@@ -433,7 +434,9 @@ func TestColumns(t *testing.T) {
 	}
 }
 
-func insertGeneratedRows(t *testing.T, conn *Connection, count int) {
+func insertGeneratedRows(conn *Connection, count int) error {
+	conn.TransactionStart("")
+	defer conn.Commit()
 	for id := 0; id < count; id++ {
 		if _, err := conn.Execute(sqlSampleInsert,
 			genBi(id),
@@ -454,9 +457,40 @@ func insertGeneratedRows(t *testing.T, conn *Connection, count int) {
 			genTs(id).In(conn.Location),
 			genN92(id),
 			genD92(id)); err != nil {
-			t.Fatalf("Error executing insert: %s", err)
+			return err
 		}
 	}
+	return nil
+}
+
+func insertGeneratedRows2(conn *Connection, count int) error {
+	conn.TransactionStart("")
+	defer conn.Commit()
+	for id := 0; id < count; id++ {
+		if _, err := conn.Execute(sqlSampleInsert,
+			id,                          // ID
+			int(id%2),                   // FLAG
+			nil,                         // BINARY
+			genI(id),                    // I
+			genI(id),                    // I32
+			genBi(id),                   // I64
+			genF(id),                    // F32
+			genD(id),                    // F64
+			genC(id),                    // C
+			genC10(id),                  // CS
+			genVc(id),                   // V
+			genVc10(id),                 // VS
+			genVc10000(id),              // M
+			genDt(id).In(conn.Location), // DT
+			genTm(id).In(conn.Location), // TM
+			genTs(id).In(conn.Location), // TS
+			genN92(id),                  // N92
+			genD92(id)); err != nil {    // D92
+			fmt.Printf("ERROR! %d: %v\n", id, err)
+			return err
+		}
+	}
+	return nil
 }
 
 func TestQueryRows(t *testing.T) {
@@ -476,7 +510,9 @@ func TestQueryRows(t *testing.T) {
 	}
 
 	const testRows = 10
-	insertGeneratedRows(t, conn, testRows)
+	if err = insertGeneratedRows(conn, testRows); err != nil {
+		t.Fatalf("Error executing insert: %s", err)
+	}
 
 	var rows [][]interface{}
 	if rows, err = conn.QueryRows(sqlSelect); err != nil {
@@ -526,7 +562,9 @@ func TestQueryRowMaps(t *testing.T) {
 	}
 
 	const testRows = 10
-	insertGeneratedRows(t, conn, testRows)
+	if err = insertGeneratedRows(conn, testRows); err != nil {
+		t.Fatalf("Error executing insert: %s", err)
+	}
 
 	var rows []map[string]interface{}
 	if rows, err = conn.QueryRowMaps(sqlSelect); err != nil {
@@ -575,7 +613,9 @@ func TestQueryRow(t *testing.T) {
 		t.Fatalf("Error executing schema: %s", err)
 	}
 
-	insertGeneratedRows(t, conn, 1)
+	if err = insertGeneratedRows(conn, 1); err != nil {
+		t.Fatalf("Error executing insert: %s", err)
+	}
 
 	var row []interface{}
 	if row, err = conn.QueryRow(sqlSelect); err != nil {
@@ -618,7 +658,9 @@ func TestQueryRowMap(t *testing.T) {
 		t.Fatalf("Error executing schema: %s", err)
 	}
 
-	insertGeneratedRows(t, conn, 1)
+	if err = insertGeneratedRows(conn, 1); err != nil {
+		t.Fatalf("Error executing insert: %s", err)
+	}
 
 	var row map[string]interface{}
 	if row, err = conn.QueryRowMap(sqlSelect); err != nil {
@@ -808,4 +850,58 @@ func TestIndexesLower(t *testing.T) {
 	st.MustEqual(2, len(indexes[0].Columns))
 	st.Equal("id", indexes[0].Columns[0])
 	st.Equal("name", indexes[0].Columns[1])
+}
+
+// MBA 11.5s go1.1.2
+func BenchmarkInsert1K(b *testing.B) {
+	b.StopTimer()
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		b.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	if err = conn.ExecuteScript(sqlSampleSchema); err != nil {
+		b.Fatalf("Error executing schema: %s", err)
+	}
+
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		if err = insertGeneratedRows2(conn, 1000); err != nil {
+			b.Fatalf("Error executing insert: %s", err)
+		}
+		b.StopTimer()
+		conn.Execute("DELETE FROM TEST")
+		b.StartTimer()
+	}
+}
+
+// MBA 9.5s go1.1.2
+func BenchmarkQueryRows1K(b *testing.B) {
+	const sqlSelect = "SELECT * FROM TEST;"
+
+	b.StopTimer()
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		b.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	if err = conn.ExecuteScript(sqlSampleSchema); err != nil {
+		b.Fatalf("Error executing schema: %s", err)
+	}
+	if err = insertGeneratedRows2(conn, 1000); err != nil {
+		b.Fatalf("Error executing insert: %s", err)
+	}
+
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		if _, err = conn.QueryRows(sqlSelect); err != nil {
+			b.Fatalf("Unexpected error in select: %s", err)
+		}
+	}
 }

@@ -28,7 +28,7 @@ func genD(i int) float64 {
 }
 
 func genC(i int) string {
-	return fmt.Sprintf("%c", i+64)
+	return fmt.Sprintf("%c", 65+i%26)
 }
 
 func genC10(i int) string {
@@ -40,6 +40,9 @@ func genVc(i int) string {
 }
 
 func genVc10(i int) string {
+	if i > 10 {
+		i = 10
+	}
 	return strings.Repeat(genC(i), i)
 }
 

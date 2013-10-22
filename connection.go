@@ -34,7 +34,6 @@ type Connection struct {
 	dialect      C.ushort
 	db_dialect   C.ushort
 	dropped      bool
-	cursors      []*Cursor
 	rowsAffected int
 	Location     *time.Location
 }
@@ -56,15 +55,7 @@ func (conn *Connection) Close() (err error) {
 	if err = conn.disconnect(); err != nil {
 		return
 	}
-	conn.dropCursors()
 	return nil
-}
-
-func (conn *Connection) closeCursors() {
-	for _, cursor := range conn.cursors {
-		cursor.Close()
-	}
-	conn.cursors = nil
 }
 
 func (conn *Connection) Columns(tableName string) (columns []*Column, err error) {
@@ -124,7 +115,6 @@ func (conn *Connection) Commit() (err error) {
 	var isc_status [20]C.ISC_STATUS
 
 	if conn.transact != 0 {
-		conn.closeCursors()
 		C.isc_commit_transaction(&isc_status[0], &conn.transact)
 		err = fbErrorCheck(&isc_status)
 	}
@@ -153,15 +143,7 @@ func (conn *Connection) Drop() (err error) {
 	if err = conn.disconnect(); err != nil {
 		return
 	}
-	conn.dropCursors()
 	return nil
-}
-
-func (conn *Connection) dropCursors() {
-	for _, cursor := range conn.cursors {
-		cursor.drop()
-	}
-	conn.cursors = nil
 }
 
 func (conn *Connection) Execute(sql string, args ...interface{}) (cursor *Cursor, err error) {
@@ -172,6 +154,9 @@ func (conn *Connection) Execute(sql string, args ...interface{}) (cursor *Cursor
 	rowsAffected, err := cursor.execute(sql, args...)
 	if rowsAffected >= 0 {
 		conn.rowsAffected = rowsAffected
+	}
+	if !cursor.open {
+		cursor = nil
 	}
 	return
 }
@@ -360,7 +345,6 @@ func (conn *Connection) Rollback() (err error) {
 	var isc_status [20]C.ISC_STATUS
 
 	if conn.transact != 0 {
-		conn.closeCursors()
 		C.isc_rollback_transaction(&isc_status[0], &conn.transact)
 		err = fbErrorCheck(&isc_status)
 	}

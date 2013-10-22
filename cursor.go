@@ -14,6 +14,7 @@ import (
 	"io"
 	"math"
 	"reflect"
+	"runtime"
 	"strings"
 	"time"
 	"unsafe"
@@ -50,6 +51,7 @@ func newCursor(conn *Connection) (cursor *Cursor, err error) {
 	cursor.i_sqlda = C.sqlda_alloc(sqlda_colsinit)
 	cursor.o_sqlda = C.sqlda_alloc(sqlda_colsinit)
 	C.isc_dsql_alloc_statement2(&isc_status[0], &conn.db, &cursor.stmt)
+	runtime.SetFinalizer(cursor, finalize)
 	if err = fbErrorCheck(&isc_status); err != nil {
 		return
 	}
@@ -69,15 +71,20 @@ func (cursor *Cursor) execute(sql string, args ...interface{}) (rowsAffected int
 	if cursor.connection.TransactionStarted() {
 		rowsAffected, err = cursor.execute2(sql, args...)
 	} else {
-		cursor.connection.TransactionStart("")
+		if err = cursor.connection.TransactionStart(""); err != nil {
+			return
+		}
 		cursor.auto_transact = cursor.connection.transact
 		rowsAffected, err = cursor.execute2(sql, args...)
 		// fmt.Printf("rowsAffected: %d\n", rowsAffected)
 		if err != nil {
 			cursor.connection.Rollback()
 		} else if !cursor.open {
-			cursor.connection.Commit()
+			err = cursor.connection.Commit()
 		}
+	}
+	if !cursor.open {
+		cursor.close()
 	}
 	return
 }
@@ -207,6 +214,44 @@ func (cursor *Cursor) execute2(sql string, args ...interface{}) (rowsAffected in
 		rowsAffected, err = cursor.rowsAffected(statement)
 	}
 	return
+}
+
+func (cursor *Cursor) finalize() {
+	if cursor.i_sqlda != nil {
+		C.free(unsafe.Pointer(cursor.i_sqlda))
+		cursor.i_sqlda = nil
+	}
+	if cursor.o_sqlda != nil {
+		C.free(unsafe.Pointer(cursor.o_sqlda))
+		cursor.o_sqlda = nil
+	}
+	if cursor.i_buffer != nil {
+		C.free(unsafe.Pointer(cursor.i_buffer))
+		cursor.i_buffer = nil
+	}
+	if cursor.o_buffer != nil {
+		C.free(unsafe.Pointer(cursor.o_buffer))
+		cursor.o_buffer = nil
+	}
+}
+
+func finalize(cursor *Cursor) {
+	if cursor.i_sqlda != nil {
+		C.free(unsafe.Pointer(cursor.i_sqlda))
+		cursor.i_sqlda = nil
+	}
+	if cursor.o_sqlda != nil {
+		C.free(unsafe.Pointer(cursor.o_sqlda))
+		cursor.o_sqlda = nil
+	}
+	if cursor.i_buffer != nil {
+		C.free(unsafe.Pointer(cursor.i_buffer))
+		cursor.i_buffer = nil
+	}
+	if cursor.o_buffer != nil {
+		C.free(unsafe.Pointer(cursor.o_buffer))
+		cursor.o_buffer = nil
+	}
 }
 
 func (cursor *Cursor) setInputParams(args []interface{}) (err error) {
@@ -469,8 +514,8 @@ func (cursor *Cursor) setInputParams(args []interface{}) (err error) {
 			offset = fbAlign(offset, C.SHORT_SIZE)
 			ivar.sqlind = (*C.ISC_SHORT)(unsafe.Pointer((uintptr(unsafe.Pointer(cursor.i_buffer)) + uintptr(offset))))
 			*ivar.sqlind = -1
-
 			offset += C.SHORT_SIZE
+			// fmt.Printf("NULL %d: %v\n", count, arg)
 		} else {
 			return errors.New("specified column is not permitted to be null")
 		}
@@ -503,13 +548,6 @@ func (cursor *Cursor) fbCursorDrop() (err error) {
 
 func (cursor *Cursor) drop() (err error) {
 	err = cursor.fbCursorDrop()
-	cursor.Columns = nil
-	cursor.ColumnsMap = nil
-	for i, c := range cursor.connection.cursors {
-		if c == cursor {
-			cursor.connection.cursors[i] = nil
-		}
-	}
 	return
 }
 
@@ -610,11 +648,15 @@ func (cursor *Cursor) check() error {
 }
 
 func (cursor *Cursor) Close() (err error) {
-	var isc_status [20]C.ISC_STATUS
-
 	if err = cursor.check(); err != nil {
 		return
 	}
+	return cursor.close()
+}
+
+func (cursor *Cursor) close() (err error) {
+	var isc_status [20]C.ISC_STATUS
+
 	C.isc_dsql_free_statement(&isc_status[0], &cursor.stmt, C.DSQL_close)
 	if err = fbErrorCheckWarn(&isc_status); err != nil {
 		return
@@ -717,6 +759,7 @@ func (cursor *Cursor) Next() bool {
 		// check if column is null
 		if ((sqlvar.sqltype & 1) != 0) && (*sqlvar.sqlind < 0) {
 			val = nil
+			// fmt.Println("NULL")
 		} else {
 			// set column value to result tuple
 			switch dtp {

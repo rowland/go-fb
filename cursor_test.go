@@ -490,3 +490,35 @@ func TestNextAfterEnd2(t *testing.T) {
 		t.Errorf("Unexpected error message: %s", err2.Message)
 	}
 }
+
+// MBA 8.1s go1.1.2
+func BenchmarkNextRow(b *testing.B) {
+	const sqlSelect = "SELECT * FROM TEST;"
+
+	b.StopTimer()
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		b.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	if err = conn.ExecuteScript(sqlSampleSchema); err != nil {
+		b.Fatalf("Error executing schema: %s", err)
+	}
+	if err = insertGeneratedRows2(conn, 1000); err != nil {
+		b.Fatalf("Error executing insert: %s", err)
+	}
+
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		cursor, err := conn.Execute(sqlSelect)
+		if err != nil {
+			b.Fatalf("Error executing select statement: %s", err)
+		}
+		for cursor.Next() {
+		}
+		cursor.Close()
+	}
+}
