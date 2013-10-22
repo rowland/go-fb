@@ -807,7 +807,7 @@ func TestConvertValue_time(t *testing.T) {
 		t.Error(err)
 	}
 	if tm != dt {
-		t.Errorf("Expected %v, got %v", tm)
+		t.Errorf("Expected %v, got %v", dt, tm)
 	}
 
 	var tm2 time.Time
@@ -815,7 +815,7 @@ func TestConvertValue_time(t *testing.T) {
 		t.Error(err)
 	}
 	if tm2 != dt {
-		t.Errorf("Expected %v, got %v", tm)
+		t.Errorf("Expected %v, got %v", dt, tm)
 	}
 
 	var nt NullableTime
@@ -823,7 +823,7 @@ func TestConvertValue_time(t *testing.T) {
 		t.Error(err)
 	}
 	if nt.Value != dt {
-		t.Errorf("Expected %v, got %v", tm)
+		t.Errorf("Expected %v, got %v", dt, tm)
 	}
 	if nt.Null {
 		t.Error("nt should not be null")

@@ -558,7 +558,6 @@ func (cursor *Cursor) rowsAffected(statementType C.long) (int, error) {
 	default:
 		return inserted + selected + updated + deleted, nil
 	}
-	return 0, nil
 }
 
 func columnsFromSqlda(sqlda *C.XSQLDA, lowercaseNames bool) []*Column {
