@@ -280,7 +280,7 @@ func (conn *Connection) ProcedureNames() (names []string, err error) {
 	return conn.names(sql)
 }
 
-func (conn *Connection) QueryRow(sql string, args ...interface{}) (row []interface{}, err error) {
+func (conn *Connection) QueryRow(sql string, args ...interface{}) (row Row, err error) {
 	var cursor *Cursor
 	if cursor, err = conn.Execute(sql, args...); err != nil {
 		return
@@ -321,7 +321,7 @@ func (conn *Connection) QueryRowMaps(sql string, args ...interface{}) (rows []ma
 	return
 }
 
-func (conn *Connection) QueryRows(sql string, args ...interface{}) (rows [][]interface{}, err error) {
+func (conn *Connection) QueryRows(sql string, args ...interface{}) (rows []Row, err error) {
 	var cursor *Cursor
 	if cursor, err = conn.Execute(sql, args...); err != nil {
 		return

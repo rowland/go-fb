@@ -514,7 +514,7 @@ func TestQueryRows(t *testing.T) {
 		t.Fatalf("Error executing insert: %s", err)
 	}
 
-	var rows [][]interface{}
+	var rows []Row
 	if rows, err = conn.QueryRows(sqlSelect); err != nil {
 		t.Fatalf("Unexpected error in select: %s", err)
 	}
@@ -617,7 +617,7 @@ func TestQueryRow(t *testing.T) {
 		t.Fatalf("Error executing insert: %s", err)
 	}
 
-	var row []interface{}
+	var row Row
 	if row, err = conn.QueryRow(sqlSelect); err != nil {
 		t.Fatalf("Unexpected error in select: %s", err)
 	}

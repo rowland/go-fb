@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"reflect"
 	"runtime"
 	"strings"
 	"time"
@@ -35,7 +34,7 @@ type Cursor struct {
 	Columns       []*Column
 	ColumnsMap    map[string]*Column
 	err           error
-	row, lastRow  []interface{}
+	row, lastRow  Row
 	lastRowMap    map[string]interface{}
 }
 
@@ -746,7 +745,7 @@ func (cursor *Cursor) Next() bool {
 	// create result tuple
 	cols := cursor.o_sqlda.sqld
 	if len(cursor.row) < int(cols) {
-		cursor.row = make([]interface{}, cols)
+		cursor.row = make(Row, cols)
 	}
 	cursor.lastRow, cursor.lastRowMap = nil, nil
 	// set result value for each column
@@ -868,9 +867,9 @@ func (cursor *Cursor) Next() bool {
 	return true
 }
 
-func (cursor *Cursor) Row() []interface{} {
+func (cursor *Cursor) Row() Row {
 	if cursor.lastRow == nil {
-		cursor.lastRow = make([]interface{}, len(cursor.Columns))
+		cursor.lastRow = make(Row, len(cursor.Columns))
 		copy(cursor.lastRow, cursor.row)
 	}
 	return cursor.lastRow
@@ -893,13 +892,5 @@ func (cursor *Cursor) Scan(dest ...interface{}) error {
 	if cursor.row == nil {
 		return errors.New("fb: Scan called without calling Next")
 	}
-	if len(dest) != len(cursor.row) {
-		return fmt.Errorf("fb: expected %d destination arguments to Scan, received %d", len(cursor.row), len(dest))
-	}
-	for i, v := range cursor.row {
-		if err := ConvertValue(dest[i], v); err != nil {
-			return fmt.Errorf("fb: Scan error on column %d: %v (%v, %v)", i, err, v, reflect.TypeOf(v))
-		}
-	}
-	return nil
+	return cursor.row.Scan(dest...)
 }
