@@ -842,14 +842,14 @@ func (cursor *Cursor) Next() bool {
 					}
 				}
 				bval := make([]byte, totalLength)
-				for i := 0; numSegments > 0; numSegments-- {
+				for i := C.ISC_LONG(0); i < totalLength && numSegments > 0; numSegments-- {
 					C.isc_get_segment(
 						&isc_status[0], &blobHandle, &actualSegLen,
 						C.ushort(maxSegment), (*C.ISC_SCHAR)(unsafe.Pointer(&bval[i])))
 					if cursor.err = fbErrorCheck(&isc_status); cursor.err != nil {
 						return false
 					}
-					i += int(actualSegLen)
+					i += C.ISC_LONG(actualSegLen)
 				}
 				C.isc_close_blob(&isc_status[0], &blobHandle)
 				if cursor.err = fbErrorCheck(&isc_status); cursor.err != nil {
