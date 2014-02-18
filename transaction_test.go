@@ -44,6 +44,27 @@ func TestTransactionStart(t *testing.T) {
 	}
 }
 
+func TestTransactionStart_bogus(t *testing.T) {
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	err = conn.TransactionStart("BOGUS")
+	if err == nil {
+		t.Fatal("Expected error starting transaction.")
+	}
+	if err.Error() != "Illegal transaction option was specified" {
+		t.Errorf("Unexpected transaction error message: %v", err)
+	}
+	if conn.TransactionStarted() {
+		t.Fatal("No transaction should have been started.")
+	}
+}
+
 func TestAutoTransactionInsertWithError(t *testing.T) {
 	os.Remove(TestFilename)
 
