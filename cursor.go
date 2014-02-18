@@ -215,25 +215,6 @@ func (cursor *Cursor) execute2(sql string, args ...interface{}) (rowsAffected in
 	return
 }
 
-func (cursor *Cursor) finalize() {
-	if cursor.i_sqlda != nil {
-		C.free(unsafe.Pointer(cursor.i_sqlda))
-		cursor.i_sqlda = nil
-	}
-	if cursor.o_sqlda != nil {
-		C.free(unsafe.Pointer(cursor.o_sqlda))
-		cursor.o_sqlda = nil
-	}
-	if cursor.i_buffer != nil {
-		C.free(unsafe.Pointer(cursor.i_buffer))
-		cursor.i_buffer = nil
-	}
-	if cursor.o_buffer != nil {
-		C.free(unsafe.Pointer(cursor.o_buffer))
-		cursor.o_buffer = nil
-	}
-}
-
 func finalize(cursor *Cursor) {
 	if cursor.i_sqlda != nil {
 		C.free(unsafe.Pointer(cursor.i_sqlda))
