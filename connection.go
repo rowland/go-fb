@@ -371,7 +371,6 @@ func (conn *Connection) TransactionStart(options string) error {
 		defer C.free(unsafe.Pointer(options2))
 		tpb = C.trans_parseopts(options2, &tpb_len)
 		if tpb_len < 0 {
-			defer C.free(unsafe.Pointer(tpb))
 			return &Error{Message: C.GoString(tpb)}
 		}
 	}
