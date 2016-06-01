@@ -1,9 +1,12 @@
 package fb
 
 /*
+#include <stdlib.h>
 #include <ibase.h>
+#include "fb.h"
 */
 import "C"
+import "unsafe"
 
 import (
 	"bytes"
@@ -22,15 +25,10 @@ func fbAlign(n C.ISC_SHORT, b C.ISC_SHORT) C.ISC_SHORT {
 }
 
 func fbErrorMsg(isc_status *C.ISC_STATUS) string {
-	var msg [1024]C.ISC_SCHAR
-	var buf bytes.Buffer
-	for C.fb_interpret(&msg[0], 1024, &isc_status) != 0 {
-		for i := 0; msg[i] != 0; i++ {
-			buf.WriteByte(uint8(msg[i]))
-		}
-		buf.WriteString("\n")
-	}
-	return buf.String()
+	s := C.fb_error_msg(isc_status)
+	msg := C.GoString(s)
+	C.free(unsafe.Pointer(s))
+	return msg
 }
 
 func fbErrorCheck(isc_status *[20]C.ISC_STATUS) error {

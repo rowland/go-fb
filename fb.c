@@ -375,3 +375,22 @@ XSQLVAR* sqlda_sqlvar(XSQLDA* sqlda, ISC_SHORT col) {
 	return sqlda->sqlvar + col;
 }
 
+char * fb_error_msg(const ISC_STATUS *isc_status)
+{
+	char msg[1024];
+	int bufSize = sizeof(msg) + strlen("\n") + 1;
+	char *result = malloc(bufSize);
+	result[0] = '\0';
+	while (fb_interpret(msg, 1024, &isc_status))
+	{
+		int msgSize = strlen(msg) + strlen("\n");
+		if (bufSize < strlen(result) + msgSize)
+		{
+			bufSize += msgSize;
+			result = realloc(result, bufSize);
+		}
+		strncat(result, msg, 1024);
+		strcat(result, "\n");
+	}
+	return result;
+}

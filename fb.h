@@ -18,4 +18,6 @@ typedef struct
 	char  vary_string[1];
 } VARY;
 
+char * fb_error_msg(const ISC_STATUS *isc_status);
+
 #endif
