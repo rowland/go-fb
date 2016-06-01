@@ -351,6 +351,10 @@ func (conn *Connection) Rollback() (err error) {
 	return
 }
 
+func (conn *Connection) RowsAffected() int {
+	return conn.rowsAffected
+}
+
 func (conn *Connection) TableNames() (names []string, err error) {
 	const sql = `SELECT RDB$RELATION_NAME FROM RDB$RELATIONS 
 		WHERE (RDB$SYSTEM_FLAG <> 1 OR RDB$SYSTEM_FLAG IS NULL) AND RDB$VIEW_BLR IS NULL 

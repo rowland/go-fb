@@ -687,6 +687,32 @@ func TestQueryRowMap(t *testing.T) {
 	st.Equal(genD92(0), row["D92"])
 }
 
+func TestUpdateRows(t *testing.T) {
+	st := SuperTest{t}
+	os.Remove(TestFilename)
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	if err = conn.ExecuteScript(sqlSampleSchema); err != nil {
+		t.Fatalf("Error executing schema: %s", err)
+	}
+
+	const testRows = 10
+	if err = insertGeneratedRows(conn, testRows); err != nil {
+		t.Fatalf("Error executing insert: %s", err)
+	}
+
+	sqlUpdate := "UPDATE TEST SET I = I + 1;"
+	if _, err = conn.Execute(sqlUpdate); err != nil {
+		t.Fatalf("Error executing update: %s", err)
+	}
+	st.Equal(testRows, conn.RowsAffected())
+}
+
 func TestNextSequenceValue(t *testing.T) {
 	st := SuperTest{t}
 	os.Remove(TestFilename)
