@@ -491,6 +491,31 @@ func TestNextAfterEnd2(t *testing.T) {
 	}
 }
 
+func TestCursorExecuteInsertDuplicate(t *testing.T) {
+	const sqlInsert = "INSERT INTO TEST (ID) VALUES (0);"
+
+	conn, err := Create(TestConnectionString)
+	if err != nil {
+		t.Fatalf("Unexpected error creating database: %s", err)
+	}
+	defer conn.Drop()
+
+	if err = conn.ExecuteScript(sqlSampleSchema); err != nil {
+		t.Fatalf("Error executing schema: %s", err)
+	}
+
+	if _, err = conn.Execute(sqlInsert); err != nil {
+		t.Fatalf("Error executing insert: %s", err)
+	}
+	_, err = conn.Execute(sqlInsert)
+	if err == nil {
+		t.Fatal("Expected error executing insert")
+	}
+	if !strings.Contains(err.Error(), "duplicate column values") {
+		t.Errorf("Expected to see 'duplicate column values', got: %s", err)
+	}
+}
+
 // MBA 8.1s go1.1.2
 func BenchmarkNextRow(b *testing.B) {
 	const sqlSelect = "SELECT * FROM TEST;"
